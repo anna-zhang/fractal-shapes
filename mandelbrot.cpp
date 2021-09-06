@@ -2,6 +2,10 @@
 #include "FIELD_2D.h"
 #include "VEC3F.h"
 
+#ifndef GL_SILENCE_DEPRECATION
+#define GL_SILENCE_DEPRECATION
+#endif
+
 #if _WIN32
 #include <gl/glut.h>
 #elif __APPLE__
@@ -526,26 +530,35 @@ void runOnce()
       center[0] = -xHalf + x * dx;
       center[1] = -yHalf + y * dy;
 
-      VEC3F cached = VEC3F(0.285, 0,0);
+      // VEC3F cached = VEC3F(0.285, 0,0);
+      VEC3F cached = center; // get Mandelbrot shape
       VEC3F iterate = center;
 
       float magnitude = iterate.magnitude();
       int totalIterations = 0;
       while (magnitude < escapeRadius && totalIterations < maxIterations)
       {
-        VEC3F squared;
+        VEC3F squared; // calculate q^2
         squared[0] = iterate[0] * iterate[0] - iterate[1] * iterate[1];
         squared[1] = 2.0 * iterate[0] * iterate[1];
 
-        iterate = squared + cached;
+        iterate = squared + cached; // q = q^2 + c
         magnitude = iterate.magnitude();
         totalIterations++;
       }
 
       field(x,y) = totalIterations;
+      if (totalIterations == maxIterations)
+      {
+        field(x, y) = 1.0; // did not escape, color white
+      }
+      else
+      {
+        field(x, y) = 0.0; // escaped, color black
+      }
+      // cout << "value at (" << x << ", " << y << "): " << totalIterations << endl;
     }
   }
-
-  field.normalize();
-  field += 0.2;
+  // field.normalize(); // clamp between 0 and 1 color values
+  // field += 0.2; // see different variations of gray levels rather than just all black background
 }
