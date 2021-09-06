@@ -1,0 +1,11 @@
+# Object files
+*.o
+
+# Executable
+mandelbrot
+
+# VS Code development files
+.vscode/
+
+# .DS_Store
+.DS_Store

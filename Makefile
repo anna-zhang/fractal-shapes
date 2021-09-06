@@ -1,5 +1,5 @@
-LDFLAGS_COMMON = -framework Accelerate -framework GLUT -framework OpenGL -lstdc++ -L/usr/local/lib/ -ljpeg -lpng
-CFLAGS_COMMON = -c -Wall -I./ -I/usr/local/include/ -O3
+LDFLAGS_COMMON = -framework Accelerate -framework GLUT -framework OpenGL -lstdc++ -L/opt/homebrew/lib/ -ljpeg -lpng
+CFLAGS_COMMON = -c -Wall -I./ -I/opt/homebrew/include/ -O3
 
 # calls:
 CC         = g++
