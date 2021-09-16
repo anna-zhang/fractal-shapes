@@ -17,6 +17,15 @@
 
 using namespace std;
 
+const int totalTop = 15; // total top roots
+const int totalBottom = 15; // total bottom roots
+
+int currentTop = 2; // actual number of top roots
+int currentBottom = 0; // actual number of bottom roots
+
+VEC3F topRoots[totalTop]; // array to hold top roots
+VEC3F bottomRoots[totalBottom]; // array to hold bottom roots
+
 // resolution of the field
 int xRes = 800;
 int yRes = 800;
@@ -471,6 +480,13 @@ int glvuWindow()
 ///////////////////////////////////////////////////////////////////////
 int main(int argc, char** argv)
 {
+  // hard code some roots for testing
+  // every root on screen is between x[-2.0, 2.0], y[-2.0, 2.0]
+  // top right is (2.0, 2.0), bottom right is (2.0, -2.0), bottom left is (-2.0, 2.0), top left is (-2.0, 2.0)
+  // root 1: (0.02736, -0.1997), root 2: (-0.6074, 0.5007)
+  topRoots[0] = VEC3F(0.02736, -0.1997, 0.0);
+  topRoots[1] = VEC3F(-0.6074, 0.5007, 0.0);
+
   // In case the field is rectangular, make sure to center the eye
   if (xRes < yRes)
   {
@@ -499,6 +515,18 @@ int main(int argc, char** argv)
 ///////////////////////////////////////////////////////////////////////
 void runEverytime()
 {
+}
+
+///////////////////////////////////////////////////////////////////////
+// Do a complex multiply
+///////////////////////////////////////////////////////////////////////
+VEC3F complexMultiply(VEC3F left, VEC3F right)
+{
+  float a = left[0];
+  float b = left[1];
+  float c = right[0];
+  float d = right[1];
+  return VEC3F(a * c - b * d, a * d + b * c, 0.0f);
 }
 
 ///////////////////////////////////////////////////////////////////////
@@ -533,18 +561,35 @@ void runOnce()
       // VEC3F cached = VEC3F(0.285, 0,0);
       VEC3F cached = center; // get Mandelbrot shape
       VEC3F iterate = center;
+      VEC3F p;
 
       float magnitude = iterate.magnitude();
       int totalIterations = 0;
       while (magnitude < escapeRadius && totalIterations < maxIterations)
       {
-        VEC3F squared; // calculate q^2
-        squared[0] = iterate[0] * iterate[0] - iterate[1] * iterate[1];
-        squared[1] = 2.0 * iterate[0] * iterate[1];
+        VEC3F g = VEC3F(1.0, 0.0, 0.0);
+        VEC3F diff;
+        for (int x = 0; x < totalTop; x++)
+        {
+          if (x == currentTop) 
+          {
+            break;
+          }
+          diff = (iterate - topRoots[x]);
+          g = complexMultiply(g, diff);
+        }
 
-        iterate = squared + cached; // q = q^2 + c
+        // compute the rational (divide top by bottom): currently just doing top 
+        p = g;
+        iterate = p;
+
         magnitude = iterate.magnitude();
         totalIterations++;
+
+        if (magnitude > escapeRadius)
+          break;
+        if (magnitude < 1e-7)
+          break;
       }
 
       field(x,y) = totalIterations;
