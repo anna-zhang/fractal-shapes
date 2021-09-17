@@ -483,9 +483,21 @@ int main(int argc, char** argv)
   // hard code some roots for testing
   // every root on screen is between x[-2.0, 2.0], y[-2.0, 2.0]
   // top right is (2.0, 2.0), bottom right is (2.0, -2.0), bottom left is (-2.0, 2.0), top left is (-2.0, 2.0)
+  
+  // TEST TOP (POLYNOMIAL)
+  // Sample image 1: test two roots polynomial
   // root 1: (0.02736, -0.1997), root 2: (-0.6074, 0.5007)
-  topRoots[0] = VEC3F(0.02736, -0.1997, 0.0);
-  topRoots[1] = VEC3F(-0.6074, 0.5007, 0.0);
+  // topRoots[0] = VEC3F(0.02736, -0.1997, 0.0);
+  // topRoots[1] = VEC3F(-0.6074, 0.5007, 0.0);
+
+  // Sample image 2: test two roots polynomial
+  // root 1: (1.2423398328690807, -1.5710306406685237), root 2: (1.3816155988857939, 0.25069637883008355)
+  topRoots[0] = VEC3F(1.2423398328690807, -1.5710306406685237, 0.0);
+  topRoots[1] = VEC3F(1.3816155988857939, 0.25069637883008355, 0.0);
+
+  // move over x by 0.1 to the left
+  // topRoots[0] = VEC3F(-0.07264, -0.1997, 0.0);
+  // topRoots[1] = VEC3F(-0.7074, 0.5007, 0.0);
 
   // In case the field is rectangular, make sure to center the eye
   if (xRes < yRes)
@@ -526,7 +538,7 @@ VEC3F complexMultiply(VEC3F left, VEC3F right)
   float b = left[1];
   float c = right[0];
   float d = right[1];
-  return VEC3F(a * c - b * d, a * d + b * c, 0.0f);
+  return VEC3F(a * c - b * d, a * d + b * c, 0.0);
 }
 
 ///////////////////////////////////////////////////////////////////////
@@ -539,7 +551,8 @@ void runOnce()
   float yLength = 4.5;
 
   int maxIterations = 100;
-  float escapeRadius = 2.0;
+  // float escapeRadius = 2.0; // old
+  float escapeRadius = 200.0; // to match the js version
   //float escapeRadius = 1.0;
 
   float dx = xLength / xRes;
@@ -559,40 +572,44 @@ void runOnce()
       center[1] = -yHalf + y * dy;
 
       // VEC3F cached = VEC3F(0.285, 0,0);
-      VEC3F cached = center; // get Mandelbrot shape
-      VEC3F iterate = center;
-      VEC3F p;
+      // VEC3F cached = center; // get Mandelbrot shape
+      VEC3F iterate = center; // iterate is q
+      VEC3F p; // hold calculated polynomial
 
       float magnitude = iterate.magnitude();
       int totalIterations = 0;
       while (magnitude < escapeRadius && totalIterations < maxIterations)
       {
-        VEC3F g = VEC3F(1.0, 0.0, 0.0);
+        VEC3F g = VEC3F(1.0, 0.0, 0.0); // holds current polynomial on top
         VEC3F diff;
+
+        // compute the top: iterate through top roots
         for (int x = 0; x < totalTop; x++)
         {
           if (x == currentTop) 
           {
             break;
           }
+          // add (q-root) onto g, the polynomial on the top
           diff = (iterate - topRoots[x]);
           g = complexMultiply(g, diff);
         }
 
-        // compute the rational (divide top by bottom): currently just doing top 
+        // compute the polynomial
         p = g;
         iterate = p;
 
         magnitude = iterate.magnitude();
         totalIterations++;
 
+        // exit conditions
         if (magnitude > escapeRadius)
           break;
         if (magnitude < 1e-7)
           break;
       }
 
-      field(x,y) = totalIterations;
+      // field(x,y) = totalIterations;
       if (totalIterations == maxIterations)
       {
         field(x, y) = 1.0; // did not escape, color white
