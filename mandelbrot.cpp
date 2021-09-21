@@ -20,11 +20,11 @@ using namespace std;
 const int totalTop = 15; // total top roots
 const int totalBottom = 15; // total bottom roots
 
-int currentTop = 2; // actual number of top roots
+int currentTop = 1; // actual number of top roots
 int currentBottom = 0; // actual number of bottom roots
 
-VEC3F topRoots[totalTop]; // array to hold top roots
-VEC3F bottomRoots[totalBottom]; // array to hold bottom roots
+// VEC3F topRoots[totalTop]; // array to hold top roots
+// VEC3F bottomRoots[totalBottom]; // array to hold bottom roots
 
 // resolution of the field
 int xRes = 800;
@@ -81,6 +81,8 @@ void runOnce();
 // forward declare the timestepping function here so that we can
 // put it at the bottom of the file
 void runEverytime();
+
+vector<VEC3F> topRoots;
 
 ///////////////////////////////////////////////////////////////////////
 // Figure out which field element is being pointed at, set xField and
@@ -484,16 +486,32 @@ int main(int argc, char** argv)
   // every root on screen is between x[-2.0, 2.0], y[-2.0, 2.0]
   // top right is (2.0, 2.0), bottom right is (2.0, -2.0), bottom left is (-2.0, 2.0), top left is (-2.0, 2.0)
   
+  // format: ./mandelbrot; # of top roots; root[0]
+  // for (int i = 0; i < argc; i++)
+  // {
+  //   cout << " argv" << i << ": " << argv[i] << endl;
+  // }
+
+  int num_top_roots = atoi(argv[1]);
+  
+  currentTop = num_top_roots; // number of roots
+  cout << "num_top_roots: " << num_top_roots << endl;
+  cout << "currentTop: " << currentTop << endl;
+  for (int i = 0; i < num_top_roots; i++)
+  {
+    // cout << "topRoots" << i << "[0]: " << atof(argv[2 * i + 2]) << endl; 
+    // cout << "topRoots" << i << "[1]: " << atof(argv[2 * i + 3]) << endl; 
+    topRoots.push_back(VEC3F(atof(argv[2 * i + 2]), atof(argv[2 * i + 3]), 0.0));
+    cout << "topRoots" << i << ": " << topRoots[i] << endl; 
+  }
   // TEST TOP (POLYNOMIAL)
   // Sample image 1: test two roots polynomial
   // root 1: (0.02736, -0.1997), root 2: (-0.6074, 0.5007)
   // topRoots[0] = VEC3F(0.02736, -0.1997, 0.0);
   // topRoots[1] = VEC3F(-0.6074, 0.5007, 0.0);
 
-  // Sample image 2: test two roots polynomial
-  // root 1: (1.2423398328690807, -1.5710306406685237), root 2: (1.3816155988857939, 0.25069637883008355)
-  topRoots[0] = VEC3F(1.2423398328690807, -1.5710306406685237, 0.0);
-  topRoots[1] = VEC3F(1.3816155988857939, 0.25069637883008355, 0.0);
+  // topRoots[0] = VEC3F(-0.02736, -0.1997, 0.0);
+  // topRoots[1] = VEC3F(0.6074, 0.5007, 0.0);
 
   // move over x by 0.1 to the left
   // topRoots[0] = VEC3F(-0.07264, -0.1997, 0.0);
@@ -551,9 +569,7 @@ void runOnce()
   float yLength = 4.5;
 
   int maxIterations = 100;
-  // float escapeRadius = 2.0; // old
   float escapeRadius = 200.0; // to match the js version
-  //float escapeRadius = 1.0;
 
   float dx = xLength / xRes;
   float dy = yLength / yRes;
@@ -571,8 +587,6 @@ void runOnce()
       center[0] = -xHalf + x * dx;
       center[1] = -yHalf + y * dy;
 
-      // VEC3F cached = VEC3F(0.285, 0,0);
-      // VEC3F cached = center; // get Mandelbrot shape
       VEC3F iterate = center; // iterate is q
       VEC3F p; // hold calculated polynomial
 
@@ -609,7 +623,7 @@ void runOnce()
           break;
       }
 
-      // field(x,y) = totalIterations;
+      // color accordingly
       if (totalIterations == maxIterations)
       {
         field(x, y) = 1.0; // did not escape, color white
@@ -618,9 +632,6 @@ void runOnce()
       {
         field(x, y) = 0.0; // escaped, color black
       }
-      // cout << "value at (" << x << ", " << y << "): " << totalIterations << endl;
     }
   }
-  // field.normalize(); // clamp between 0 and 1 color values
-  // field += 0.2; // see different variations of gray levels rather than just all black background
 }
