@@ -479,6 +479,160 @@ int glvuWindow()
 }
 
 ///////////////////////////////////////////////////////////////////////
+// Do a complex multiply
+///////////////////////////////////////////////////////////////////////
+VEC3F complexMultiply(VEC3F left, VEC3F right)
+{
+  float a = left[0];
+  float b = left[1];
+  float c = right[0];
+  float d = right[1];
+  return VEC3F(a * c - b * d, a * d + b * c, 0.0);
+}
+
+//////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////////
+void writePPM(const string &filename, int &xRes, int &yRes, const float *values)
+{
+  int totalCells = xRes * yRes;
+  unsigned char *pixels = new unsigned char[3 * totalCells];
+  for (int i = 0; i < 3 * totalCells; i++)
+    pixels[i] = values[i];
+
+  FILE *fp;
+  fp = fopen(filename.c_str(), "wb");
+  if (fp == NULL)
+  {
+    cout << " Could not open file \"" << filename.c_str() << "\" for writing." << endl;
+    cout << " Make sure you're not trying to write from a weird location or with a " << endl;
+    cout << " strange filename. Bailing ... " << endl;
+    exit(0);
+  }
+
+  fprintf(fp, "P6\n%d %d\n255\n", xRes, yRes);
+  fwrite(pixels, 1, totalCells * 3, fp);
+  fclose(fp);
+  delete[] pixels;
+}
+
+//////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////////
+void renderImage(int &xRes, int &yRes, const string &filename, int frame_num)
+{
+  // allocate the final image
+  const int totalCells = xRes * yRes;
+  float *ppmOut = new float[3 * totalCells];
+
+  float xLength = 4.5;
+  float yLength = 4.5;
+
+  int maxIterations = 100;
+  float escapeRadius = 200.0; // to match the js version
+
+  float dx = xLength / xRes;
+  float dy = yLength / yRes;
+  float xHalf = xLength * 0.5;
+  float yHalf = yLength * 0.5;
+
+  // get the pixel values of the roots, changing from x[-2 x 2], y[-2 x 2] to [xRes x yRes]
+  float root1x_pixel = (topRoots[0][0] + 2.0f) * (xRes / 4.0f);
+  float root1y_pixel = (topRoots[0][1] + 2.0f) * (yRes / 4.0f);
+  float root2x_pixel = (topRoots[1][0] + 2.0f) * (xRes / 4.0f);
+  float root2y_pixel = (topRoots[1][1] + 2.0f) * (yRes / 4.0f);
+
+  cout << "root1x_pixel: " << root1x_pixel << endl;
+  cout << "root1y_pixel: " << root1y_pixel << endl;
+  cout << "root2x_pixel: " << root2x_pixel << endl;
+  cout << "root2y_pixel: " << root2y_pixel << endl;
+
+
+  cout << " Row: "; flush(cout);
+  for (int y = 0; y < yRes; y++)
+  {
+    cout << y << " "; flush(cout);
+    for (int x = 0; x < xRes; x++)
+    {
+      // getting the center coordinate here is a little sticky
+      VEC3F center;
+      center[0] = -xHalf + x * dx;
+      center[1] = -yHalf + y * dy;
+
+      VEC3F iterate = center; // iterate is q
+      VEC3F p; // hold calculated polynomial
+
+      float magnitude = iterate.magnitude();
+      int totalIterations = 0;
+      while (magnitude < escapeRadius && totalIterations < maxIterations)
+      {
+        VEC3F g = VEC3F(1.0, 0.0, 0.0); // holds current polynomial on top
+        VEC3F diff;
+
+        // compute the top: iterate through top roots
+        for (int x = 0; x < totalTop; x++)
+        {
+          if (x == currentTop) 
+          {
+            break;
+          }
+          // add (q-root) onto g, the polynomial on the top
+          diff = (iterate - topRoots[x]);
+          g = complexMultiply(g, diff);
+        }
+
+        // compute the polynomial
+        p = g;
+        iterate = p;
+
+        magnitude = iterate.magnitude();
+        totalIterations++;
+
+        // exit conditions
+        if (magnitude > escapeRadius)
+          break;
+        if (magnitude < 1e-7)
+          break;
+      }
+
+      // cout << "totalIterations: " << totalIterations << endl;
+      int pixelIndex = x + (yRes - y) * xRes; // calculate pixel index for pixel values array that represents the final output image
+
+      // color accordingly
+      if (totalIterations == maxIterations)
+      {
+        // cout << "white" << endl;
+        field(x, y) = 1.0; // did not escape, color white
+        // set, in final image
+        ppmOut[3 * pixelIndex] = 255.0f;
+        ppmOut[3 * pixelIndex + 1] = 255.0f;
+        ppmOut[3 * pixelIndex + 2] = 255.0f;
+      }
+      else
+      {
+        // cout << "black" << endl;
+        field(x, y) = 0.0; // escaped, color black
+        // set, in final image
+        ppmOut[3 * pixelIndex] = 0.0f;
+        ppmOut[3 * pixelIndex + 1] = 0.0f;
+        ppmOut[3 * pixelIndex + 2] = 0.0f;
+      }
+
+      // red square around roots to be able to see root positions
+      if (((x > (root1x_pixel - 10.0f)) && (x < (root1x_pixel + 10.0f)) && (y > (root1y_pixel - 10.0f)) && (y < (root1y_pixel + 10.0f))) || ((x > (root2x_pixel - 10.0f)) && (x < (root2x_pixel + 10.0f)) && (y > (root2y_pixel - 10.0f)) && (y < (root2y_pixel + 10.0f))))
+      {
+        // cout << "near root" << endl;
+        ppmOut[3 * pixelIndex] = 255.0f;
+        ppmOut[3 * pixelIndex + 1] = 0.0f;
+        ppmOut[3 * pixelIndex + 2] = 0.0f;
+      }
+    }
+  }
+
+  writePPM(filename, xRes, yRes, ppmOut);
+
+  delete[] ppmOut;
+}
+
+///////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////
 int main(int argc, char** argv)
 {
@@ -486,36 +640,16 @@ int main(int argc, char** argv)
   // every root on screen is between x[-2.0, 2.0], y[-2.0, 2.0]
   // top right is (2.0, 2.0), bottom right is (2.0, -2.0), bottom left is (-2.0, 2.0), top left is (-2.0, 2.0)
   
-  // format: ./mandelbrot; # of top roots; root[0]
-  // for (int i = 0; i < argc; i++)
+  // format: ./mandelbrot; # of top roots n; root0_x; root0_y; ...; rootn-1_x; rootn-1_y
+  // int num_top_roots = atoi(argv[1]);
+  // currentTop = num_top_roots; // number of roots
+  // cout << "num_top_roots: " << num_top_roots << endl;
+  // cout << "currentTop: " << currentTop << endl;
+  // for (int i = 0; i < num_top_roots; i++)
   // {
-  //   cout << " argv" << i << ": " << argv[i] << endl;
+  //   topRoots.push_back(VEC3F(atof(argv[2 * i + 2]), atof(argv[2 * i + 3]), 0.0));
+  //   cout << "topRoots" << i << ": " << topRoots[i] << endl; 
   // }
-
-  int num_top_roots = atoi(argv[1]);
-  
-  currentTop = num_top_roots; // number of roots
-  cout << "num_top_roots: " << num_top_roots << endl;
-  cout << "currentTop: " << currentTop << endl;
-  for (int i = 0; i < num_top_roots; i++)
-  {
-    // cout << "topRoots" << i << "[0]: " << atof(argv[2 * i + 2]) << endl; 
-    // cout << "topRoots" << i << "[1]: " << atof(argv[2 * i + 3]) << endl; 
-    topRoots.push_back(VEC3F(atof(argv[2 * i + 2]), atof(argv[2 * i + 3]), 0.0));
-    cout << "topRoots" << i << ": " << topRoots[i] << endl; 
-  }
-  // TEST TOP (POLYNOMIAL)
-  // Sample image 1: test two roots polynomial
-  // root 1: (0.02736, -0.1997), root 2: (-0.6074, 0.5007)
-  // topRoots[0] = VEC3F(0.02736, -0.1997, 0.0);
-  // topRoots[1] = VEC3F(-0.6074, 0.5007, 0.0);
-
-  // topRoots[0] = VEC3F(-0.02736, -0.1997, 0.0);
-  // topRoots[1] = VEC3F(0.6074, 0.5007, 0.0);
-
-  // move over x by 0.1 to the left
-  // topRoots[0] = VEC3F(-0.07264, -0.1997, 0.0);
-  // topRoots[1] = VEC3F(-0.7074, 0.5007, 0.0);
 
   // In case the field is rectangular, make sure to center the eye
   if (xRes < yRes)
@@ -529,7 +663,52 @@ int main(int argc, char** argv)
     eyeCenter[1] = yLength * 0.5;
   }
 
-  runOnce();
+  // two root case
+  // iterate root 0 from top to bottom
+  // int image_num = 0;
+  // currentTop = 2;
+  // for (float root0_y = 1.5; root0_y > -2.0; root0_y -= 0.5)
+  // {
+  //   // iterate root 0 from left to right
+  //   for (float root0_x = -1.5; root0_x < 2; root0_x += 0.5)
+  //   {
+  //     // iterate root 1 from top to bottom
+  //     for (float root1_y = 1.5; root1_y > -2.0; root1_y -= 0.5)
+  //     {
+  //       // iterate root 1 from left to right
+  //       for (float root1_x = -1.5; root1_x < 2; root1_x += 0.5)
+  //       {
+  //         char buffer[256];
+  //         sprintf(buffer, "./frames/frame.%04i.ppm", image_num);
+
+  //         topRoots.clear(); // clear from last iteration
+  //         topRoots.push_back(VEC3F(root0_x, root0_y, 0.0));
+  //         topRoots.push_back(VEC3F(root1_x, root1_y, 0.0));
+
+  //         cout << "topRoots0: " << topRoots[0] << endl;
+  //         cout << "topRoots1: " << topRoots[1] << endl;
+
+  //         renderImage(xRes, yRes, buffer, image_num);
+  //         image_num++;
+
+  //       }
+  //     }
+  //   }
+  // }
+
+  // TEST
+  int image_num = 0;
+  char buffer[256];
+  sprintf(buffer, "./frames/frame.%04i.ppm", image_num);
+  topRoots.clear();
+  topRoots.push_back(VEC3F(0.02736, -0.1997, 0.0));
+  topRoots.push_back(VEC3F(-0.6074, 0.5007, 0.0));
+  currentTop = 2;
+  renderImage(xRes, yRes, buffer, image_num);
+
+
+  // compute fractal
+  // runOnce();
 
   // initialize GLUT and GL
   glutInit(&argc, argv);
@@ -545,18 +724,6 @@ int main(int argc, char** argv)
 ///////////////////////////////////////////////////////////////////////
 void runEverytime()
 {
-}
-
-///////////////////////////////////////////////////////////////////////
-// Do a complex multiply
-///////////////////////////////////////////////////////////////////////
-VEC3F complexMultiply(VEC3F left, VEC3F right)
-{
-  float a = left[0];
-  float b = left[1];
-  float c = right[0];
-  float d = right[1];
-  return VEC3F(a * c - b * d, a * d + b * c, 0.0);
 }
 
 ///////////////////////////////////////////////////////////////////////
