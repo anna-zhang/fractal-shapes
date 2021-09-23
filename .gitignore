@@ -8,6 +8,9 @@ mandelbrot
 # Images
 /frames/frame*.ppm
 
+# Root information
+/frames/root_info.txt
+
 # VS Code development files
 .vscode/
 

@@ -13,6 +13,7 @@
 #endif
 
 #include <iostream>
+#include <fstream>
 #include "QUICKTIME_MOVIE.h"
 
 using namespace std;
@@ -636,6 +637,10 @@ void renderImage(int &xRes, int &yRes, const string &filename, int frame_num)
 ///////////////////////////////////////////////////////////////////////
 int main(int argc, char** argv)
 {
+  // create and open a text file to store root information alongside output image file names
+  ofstream rootInfo("frames/root_info.txt");
+
+
   // hard code some roots for testing
   // every root on screen is between x[-2.0, 2.0], y[-2.0, 2.0]
   // top right is (2.0, 2.0), bottom right is (2.0, -2.0), bottom left is (-2.0, 2.0), top left is (-2.0, 2.0)
@@ -663,36 +668,46 @@ int main(int argc, char** argv)
     eyeCenter[1] = yLength * 0.5;
   }
 
-  // two root case, 7x7 interior grid
-  // iterate root 0 from top to bottom
-  int image_num = 0;
-  currentTop = 2;
-  for (float root0_y = 1.5; root0_y > -2.0; root0_y -= 0.5)
+  if (rootInfo.is_open()) // make sure the text file can be opened
   {
-    // iterate root 0 from left to right
-    for (float root0_x = -1.5; root0_x < 2; root0_x += 0.5)
+    // two root case, 7x7 interior grid
+    // iterate root 0 from top to bottom
+    int image_num = 0; // current output image number
+    currentTop = 2; // # of roots
+    for (float root0_y = 1.5; root0_y > -2.0; root0_y -= 0.5)
     {
-      // iterate root 1 from top to bottom
-      for (float root1_y = 1.5; root1_y > -2.0; root1_y -= 0.5)
+      // iterate root 0 from left to right
+      for (float root0_x = -1.5; root0_x < 2; root0_x += 0.5)
       {
-        // iterate root 1 from left to right
-        for (float root1_x = -1.5; root1_x < 2; root1_x += 0.5)
+        // iterate root 1 from top to bottom
+        for (float root1_y = 1.5; root1_y > -2.0; root1_y -= 0.5)
         {
-          char buffer[256]; // hold location to put image file
-          sprintf(buffer, "./frames/frame.%04i.ppm", image_num);
+          // iterate root 1 from left to right
+          for (float root1_x = -1.5; root1_x < 2; root1_x += 0.5)
+          {
+            char buffer[256]; // hold location to put image file
+            sprintf(buffer, "./frames/frame.%04i.ppm", image_num);
 
-          topRoots.clear(); // clear from last iteration
-          topRoots.push_back(VEC3F(root0_x, root0_y, 0.0));
-          topRoots.push_back(VEC3F(root1_x, root1_y, 0.0));
+            topRoots.clear(); // clear from last iteration
+            topRoots.push_back(VEC3F(root0_x, root0_y, 0.0));
+            topRoots.push_back(VEC3F(root1_x, root1_y, 0.0));
 
-          cout << "topRoots0: " << topRoots[0] << endl;
-          cout << "topRoots1: " << topRoots[1] << endl;
+            cout << "topRoots0: " << topRoots[0] << endl;
+            cout << "topRoots1: " << topRoots[1] << endl;
 
-          renderImage(xRes, yRes, buffer, image_num);
-          image_num++;
+            renderImage(xRes, yRes, buffer, image_num);
+            rootInfo << buffer << ": " << "topRoots0" << topRoots[0] << ", topRoots1" << topRoots[1] << endl; // write root info to text file
+            image_num++;
+          }
         }
       }
     }
+    rootInfo.close(); // close file after done writing
+  }
+  else 
+  {
+    cout << "Unable to open file." << endl;
+    return 0;
   }
 
   // TEST
