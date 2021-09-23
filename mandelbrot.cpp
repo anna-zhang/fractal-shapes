@@ -547,10 +547,10 @@ void renderImage(int &xRes, int &yRes, const string &filename, int frame_num)
   // cout << "root2y_pixel: " << root2y_pixel << endl;
 
 
-  cout << " Row: "; flush(cout);
+  // cout << " Row: "; flush(cout);
   for (int y = 0; y < yRes; y++)
   {
-    cout << y << " "; flush(cout);
+    // cout << y << " "; flush(cout);
     for (int x = 0; x < xRes; x++)
     {
       // getting the center coordinate here is a little sticky
@@ -656,6 +656,25 @@ int main(int argc, char** argv)
   //   cout << "topRoots" << i << ": " << topRoots[i] << endl; 
   // }
 
+  int gridSize_x = 8;
+  int gridSize_y = 8;
+
+  // format: ./mandelbrot (grid size x) (grid size y)
+  if (argc == 3)
+  {
+    gridSize_x = atoi(argv[1]);
+    gridSize_y = atoi(argv[2]);
+  }
+  
+  // currentTop = num_top_roots; // number of roots
+  // cout << "num_top_roots: " << num_top_roots << endl;
+  // cout << "currentTop: " << currentTop << endl;
+  // for (int i = 0; i < num_top_roots; i++)
+  // {
+  //   topRoots.push_back(VEC3F(atof(argv[2 * i + 2]), atof(argv[2 * i + 3]), 0.0));
+  //   cout << "topRoots" << i << ": " << topRoots[i] << endl; 
+  // }
+
   // In case the field is rectangular, make sure to center the eye
   if (xRes < yRes)
   {
@@ -674,26 +693,26 @@ int main(int argc, char** argv)
     // iterate root 0 from top to bottom
     int image_num = 0; // current output image number
     currentTop = 2; // # of roots
-    for (float root0_y = 1.5; root0_y > -2.0; root0_y -= 0.5)
+    for (float root0_y = 2.0; root0_y >= -2.0; root0_y -= 4.0/gridSize_y)
     {
       // iterate root 0 from left to right
-      for (float root0_x = -1.5; root0_x < 2; root0_x += 0.5)
+      for (float root0_x = -2.0; root0_x <= 2.0; root0_x += 4.0/gridSize_x)
       {
         // iterate root 1 from top to bottom
-        for (float root1_y = 1.5; root1_y > -2.0; root1_y -= 0.5)
+        for (float root1_y = 2.0; root1_y >= -2.0; root1_y -= 4.0/gridSize_y)
         {
           // iterate root 1 from left to right
-          for (float root1_x = -1.5; root1_x < 2; root1_x += 0.5)
+          for (float root1_x = -2.0; root1_x <= 2.0; root1_x += 4.0/gridSize_x)
           {
             char buffer[256]; // hold location to put image file
-            sprintf(buffer, "./frames/frame.%04i.ppm", image_num);
+            sprintf(buffer, "./frames/frame.%06i.ppm", image_num);
 
             topRoots.clear(); // clear from last iteration
             topRoots.push_back(VEC3F(root0_x, root0_y, 0.0));
             topRoots.push_back(VEC3F(root1_x, root1_y, 0.0));
 
-            cout << "topRoots0: " << topRoots[0] << endl;
-            cout << "topRoots1: " << topRoots[1] << endl;
+            // cout << "topRoots0: " << topRoots[0] << endl;
+            // cout << "topRoots1: " << topRoots[1] << endl;
 
             renderImage(xRes, yRes, buffer, image_num);
             rootInfo << buffer << ": " << "topRoots0" << topRoots[0] << ", topRoots1" << topRoots[1] << endl; // write root info to text file

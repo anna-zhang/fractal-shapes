@@ -67,7 +67,7 @@ int main(int argc, char** argv)
   {
     // build the next frame's filename
     char buffer[256];
-    sprintf(buffer, "frame.%04i.ppm", frameNumber);
+    sprintf(buffer, "frame.%06i.ppm", frameNumber);
   
     // try reading the next sequential frame
     int width, height;
