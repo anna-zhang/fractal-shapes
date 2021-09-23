@@ -3,6 +3,10 @@
 
 # Executable
 mandelbrot
+/frames/movieMaker
+
+# Images
+/frames/frame*.ppm
 
 # VS Code development files
 .vscode/

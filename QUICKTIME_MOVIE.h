@@ -19,6 +19,12 @@
 #include <vector>
 #include <jpeglib.h>
 
+#ifdef __linux__
+#include <cstring>
+#include <arpa/inet.h>
+#endif
+
+
 // enables OpenGL screengrabs
 #if _WIN32
 #include <gl/glut.h>
@@ -37,10 +43,10 @@ class QT_ATOM
 {
     FILE *fp;
     long start_offset;
-    const char* type;
+    //const char* type;
 public:
     QT_ATOM(FILE* fp,const char* type)
-        :fp(fp),type(type)
+        :fp(fp)//,type(type)
     {
         start_offset=ftell(fp);
         uint dummy;
@@ -110,6 +116,34 @@ public:
   };
 
   ////////////////////////////////////////////////////////////////////////
+  // Add a frame to the movie
+  ////////////////////////////////////////////////////////////////////////
+  void addFrame(const unsigned char* image, const int& width, const int& height) 
+  {
+    // store the screen dimensions
+    if (_width == -1 && _height == -1)
+    {
+      _width = width;
+      _height = height;
+    }
+    assert(width == _width);
+    assert(height == _height);
+    for (int y = 0; y < _height; y++)
+    {
+      JSAMPLE* row = new JSAMPLE[3 * _width];
+
+      // invert y, because of pixel ordering
+      for (int x = 0; x < _width * 3; x++)
+        //row[x] = image[x + (height - 1 - y) * (3 * _width)];
+        row[x] = image[x + y * (3 * _width)];
+
+      _frameRows.push_back(row);
+    }
+    // std::cout << "now here" << std::endl;
+    _totalFrames++;
+  }
+
+    ////////////////////////////////////////////////////////////////////////
   // Grab the current OpenGL frame and add it to the movie
   //
   // The original screengrab code is from GLVU:
@@ -419,3 +453,4 @@ private:
 };
 
 #endif
+

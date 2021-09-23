@@ -540,10 +540,10 @@ void renderImage(int &xRes, int &yRes, const string &filename, int frame_num)
   float root2x_pixel = (topRoots[1][0] + 2.0f) * (xRes / 4.0f);
   float root2y_pixel = (topRoots[1][1] + 2.0f) * (yRes / 4.0f);
 
-  cout << "root1x_pixel: " << root1x_pixel << endl;
-  cout << "root1y_pixel: " << root1y_pixel << endl;
-  cout << "root2x_pixel: " << root2x_pixel << endl;
-  cout << "root2y_pixel: " << root2y_pixel << endl;
+  // cout << "root1x_pixel: " << root1x_pixel << endl;
+  // cout << "root1y_pixel: " << root1y_pixel << endl;
+  // cout << "root2x_pixel: " << root2x_pixel << endl;
+  // cout << "root2y_pixel: " << root2y_pixel << endl;
 
 
   cout << " Row: "; flush(cout);
@@ -663,48 +663,47 @@ int main(int argc, char** argv)
     eyeCenter[1] = yLength * 0.5;
   }
 
-  // two root case
+  // two root case, 7x7 interior grid
   // iterate root 0 from top to bottom
-  // int image_num = 0;
-  // currentTop = 2;
-  // for (float root0_y = 1.5; root0_y > -2.0; root0_y -= 0.5)
-  // {
-  //   // iterate root 0 from left to right
-  //   for (float root0_x = -1.5; root0_x < 2; root0_x += 0.5)
-  //   {
-  //     // iterate root 1 from top to bottom
-  //     for (float root1_y = 1.5; root1_y > -2.0; root1_y -= 0.5)
-  //     {
-  //       // iterate root 1 from left to right
-  //       for (float root1_x = -1.5; root1_x < 2; root1_x += 0.5)
-  //       {
-  //         char buffer[256];
-  //         sprintf(buffer, "./frames/frame.%04i.ppm", image_num);
+  int image_num = 0;
+  currentTop = 2;
+  for (float root0_y = 1.5; root0_y > -2.0; root0_y -= 0.5)
+  {
+    // iterate root 0 from left to right
+    for (float root0_x = -1.5; root0_x < 2; root0_x += 0.5)
+    {
+      // iterate root 1 from top to bottom
+      for (float root1_y = 1.5; root1_y > -2.0; root1_y -= 0.5)
+      {
+        // iterate root 1 from left to right
+        for (float root1_x = -1.5; root1_x < 2; root1_x += 0.5)
+        {
+          char buffer[256]; // hold location to put image file
+          sprintf(buffer, "./frames/frame.%04i.ppm", image_num);
 
-  //         topRoots.clear(); // clear from last iteration
-  //         topRoots.push_back(VEC3F(root0_x, root0_y, 0.0));
-  //         topRoots.push_back(VEC3F(root1_x, root1_y, 0.0));
+          topRoots.clear(); // clear from last iteration
+          topRoots.push_back(VEC3F(root0_x, root0_y, 0.0));
+          topRoots.push_back(VEC3F(root1_x, root1_y, 0.0));
 
-  //         cout << "topRoots0: " << topRoots[0] << endl;
-  //         cout << "topRoots1: " << topRoots[1] << endl;
+          cout << "topRoots0: " << topRoots[0] << endl;
+          cout << "topRoots1: " << topRoots[1] << endl;
 
-  //         renderImage(xRes, yRes, buffer, image_num);
-  //         image_num++;
-
-  //       }
-  //     }
-  //   }
-  // }
+          renderImage(xRes, yRes, buffer, image_num);
+          image_num++;
+        }
+      }
+    }
+  }
 
   // TEST
-  int image_num = 0;
-  char buffer[256];
-  sprintf(buffer, "./frames/frame.%04i.ppm", image_num);
-  topRoots.clear();
-  topRoots.push_back(VEC3F(0.02736, -0.1997, 0.0));
-  topRoots.push_back(VEC3F(-0.6074, 0.5007, 0.0));
-  currentTop = 2;
-  renderImage(xRes, yRes, buffer, image_num);
+  // int image_num = 0;
+  // char buffer[256];
+  // sprintf(buffer, "./frames/frame.%04i.ppm", image_num);
+  // topRoots.clear();
+  // topRoots.push_back(VEC3F(0.02736, -0.1997, 0.0));
+  // topRoots.push_back(VEC3F(-0.6074, 0.5007, 0.0));
+  // currentTop = 2;
+  // renderImage(xRes, yRes, buffer, image_num);
 
 
   // compute fractal
