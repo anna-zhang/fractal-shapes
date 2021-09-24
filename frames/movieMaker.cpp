@@ -61,27 +61,107 @@ int main(int argc, char** argv)
 {
   QUICKTIME_MOVIE movie;
 
+  int orientation = 0; // 0 for horizontal scan, 1 for vertical scan; default horizontal scan
+  // format: ./movieMaker [orientation: either -h or -v]
+  if (argc == 2)
+  {
+    if (strcmp(argv[1], "-v") == 0)
+    {
+      orientation = 1;
+    }
+  }
+
+
   bool readSuccess = true;
   int frameNumber = 0;
-  while (readSuccess)
+
+  if (orientation == 0) // horizontal scan
   {
-    // build the next frame's filename
-    char buffer[256];
-    sprintf(buffer, "frame.%06i.ppm", frameNumber);
-  
-    // try reading the next sequential frame
-    int width, height;
-    unsigned char* pixels = NULL;
-    readSuccess = readPPM(buffer, pixels, width, height); 
+    while (readSuccess)
+    {
+      // build the next frame's filename
+      char buffer[256];
+      sprintf(buffer, "frame.%06i.ppm", frameNumber);
+    
+      // try reading the next sequential frame
+      int width, height;
+      unsigned char* pixels = NULL;
+      readSuccess = readPPM(buffer, pixels, width, height); 
 
-    // if it exists, add it
-    if (readSuccess)
-      // cout << "here" << endl;
-      movie.addFrame(pixels, width, height);
+      // if it exists, add it
+      if (readSuccess)
+        movie.addFrame(pixels, width, height);
 
-    if (pixels) delete[] pixels;
-    frameNumber++;
+      if (pixels) delete[] pixels;
+      frameNumber++;
+    }
   }
+  else // vertical scan
+  {
+    // root0 sweeping vertical, root1 sweeping vertical
+    int column = 0;
+    for (int y = 0; y < 11; y++)
+    {
+      for (int z = 0; z < 11; z++)
+      {
+        for (int i = 0; i < 11; i++)
+        {
+          frameNumber = i + 1331 * z + 121 * y;
+          for (int j = 0; j < 11; j++)
+          {
+            // build the next frame's filename
+            char buffer[256];
+            sprintf(buffer, "frame.%06i.ppm", frameNumber);
+          
+            // try reading the next sequential frame
+            int width, height;
+            unsigned char* pixels = NULL;
+            readSuccess = readPPM(buffer, pixels, width, height); 
+
+            // if it exists, add it
+            if (readSuccess)
+              // cout << "here" << endl;
+              movie.addFrame(pixels, width, height);
+            else break;
+
+            if (pixels) delete[] pixels;
+            frameNumber += 11;
+          }
+        }
+      }
+    }
+    
+    // // root0 sweeping horizontal, root1 sweeping vertical: output 09-23-2021_10x10_hv.mov
+    // int column = 0;
+    // for (int z = 0; z < 121; z++)
+    // {
+    //   for (int i = 0; i < 11; i++)
+    //   {
+    //     frameNumber = i + 121 * z;
+    //     for (int j = 0; j < 11; j++)
+    //     {
+    //       // build the next frame's filename
+    //       char buffer[256];
+    //       sprintf(buffer, "frame.%06i.ppm", frameNumber);
+        
+    //       // try reading the next sequential frame
+    //       int width, height;
+    //       unsigned char* pixels = NULL;
+    //       readSuccess = readPPM(buffer, pixels, width, height); 
+
+    //       // if it exists, add it
+    //       if (readSuccess)
+    //         // cout << "here" << endl;
+    //         movie.addFrame(pixels, width, height);
+    //       else break;
+
+    //       if (pixels) delete[] pixels;
+    //       frameNumber += 11;
+    //     }
+    //   }
+    // }  
+  }
+  
 
   // write out the compiled movie
   movie.writeMovie("movie.mov");

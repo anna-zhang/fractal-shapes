@@ -656,8 +656,8 @@ int main(int argc, char** argv)
   //   cout << "topRoots" << i << ": " << topRoots[i] << endl; 
   // }
 
-  int gridSize_x = 8;
-  int gridSize_y = 8;
+  int gridSize_x = 8; // default grid size if not specified by user
+  int gridSize_y = 8; // default grid size if not specified by user
 
   // format: ./mandelbrot (grid size x) (grid size y)
   if (argc == 3)
