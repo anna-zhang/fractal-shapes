@@ -1,4 +1,5 @@
 #include <cmath>
+#include <cstdio>
 #include "FIELD_2D.h"
 #include "VEC3F.h"
 
@@ -637,117 +638,111 @@ void renderImage(int &xRes, int &yRes, const string &filename, int frame_num)
 ///////////////////////////////////////////////////////////////////////
 int main(int argc, char** argv)
 {
-  // create and open a text file to store root information alongside output image file names
-  ofstream rootInfo("frames/root_info.txt");
 
-
-  // hard code some roots for testing
   // every root on screen is between x[-2.0, 2.0], y[-2.0, 2.0]
   // top right is (2.0, 2.0), bottom right is (2.0, -2.0), bottom left is (-2.0, 2.0), top left is (-2.0, 2.0)
-  
-  // format: ./mandelbrot; # of top roots n; root0_x; root0_y; ...; rootn-1_x; rootn-1_y
-  // int num_top_roots = atoi(argv[1]);
-  // currentTop = num_top_roots; // number of roots
-  // cout << "num_top_roots: " << num_top_roots << endl;
-  // cout << "currentTop: " << currentTop << endl;
-  // for (int i = 0; i < num_top_roots; i++)
-  // {
-  //   topRoots.push_back(VEC3F(atof(argv[2 * i + 2]), atof(argv[2 * i + 3]), 0.0));
-  //   cout << "topRoots" << i << ": " << topRoots[i] << endl; 
-  // }
 
-  int gridSize_x = 8; // default grid size if not specified by user
-  int gridSize_y = 8; // default grid size if not specified by user
-
-  // format: ./mandelbrot (grid size x) (grid size y)
-  if (argc == 3)
+  // detect mode
+  int mode = 0; // 0 for full space exploration, 1 for single exploration; default full space exploration
+  if (argc > 1)
   {
-    gridSize_x = atoi(argv[1]);
-    gridSize_y = atoi(argv[2]);
-  }
-  
-  // currentTop = num_top_roots; // number of roots
-  // cout << "num_top_roots: " << num_top_roots << endl;
-  // cout << "currentTop: " << currentTop << endl;
-  // for (int i = 0; i < num_top_roots; i++)
-  // {
-  //   topRoots.push_back(VEC3F(atof(argv[2 * i + 2]), atof(argv[2 * i + 3]), 0.0));
-  //   cout << "topRoots" << i << ": " << topRoots[i] << endl; 
-  // }
-
-  // In case the field is rectangular, make sure to center the eye
-  if (xRes < yRes)
-  {
-    float xLength = (float)xRes / yRes;
-    eyeCenter[0] = xLength * 0.5;
-  }
-  if (yRes < xRes)
-  {
-    float yLength = (float)yRes / xRes;
-    eyeCenter[1] = yLength * 0.5;
-  }
-
-  if (rootInfo.is_open()) // make sure the text file can be opened
-  {
-    // two root case, 7x7 interior grid
-    // iterate root 0 from top to bottom
-    int image_num = 0; // current output image number
-    currentTop = 2; // # of roots
-    for (float root0_y = 2.0; root0_y >= -2.0; root0_y -= 4.0/gridSize_y)
+    if (strcmp(argv[1], "-single") == 0)
     {
-      // iterate root 0 from left to right
-      for (float root0_x = -2.0; root0_x <= 2.0; root0_x += 4.0/gridSize_x)
+      mode = 1; // set to single exploration mode
+    }
+  }
+  
+  if (mode == 1) // single exploration
+  {
+    // format: ./mandelbrot; -single (# of top roots n) (root0_x) (root0_y) ... (ootn-1_x) (rootn-1_y)
+    int num_top_roots = atoi(argv[2]);
+    currentTop = num_top_roots; // number of roots
+    // cout << "num_top_roots: " << num_top_roots << endl;
+    // cout << "currentTop: " << currentTop << endl;
+    for (int i = 0; i < num_top_roots; i++)
+    {
+      topRoots.push_back(VEC3F(atof(argv[2 * i + 3]), atof(argv[2 * i + 4]), 0.0));
+      // cout << "topRoots" << i << ": " << topRoots[i] << endl; 
+    }
+    // compute fractal
+    runOnce();
+
+    // initialize GLUT and GL
+    glutInit(&argc, argv);
+
+    // open the GL window
+    glvuWindow();
+  }
+  else // full space exploration
+  {
+    // create and open a text file to store root information alongside output image file names
+    ofstream rootInfo("frames/root_info.txt");
+
+    int gridSize_x = 8; // default grid size if not specified by user
+    int gridSize_y = 8; // default grid size if not specified by user
+
+    // format: ./mandelbrot -full (grid size x) (grid size y)
+    if (argc == 3)
+    {
+      gridSize_x = atoi(argv[2]);
+      gridSize_y = atoi(argv[3]);
+    }
+
+    // In case the field is rectangular, make sure to center the eye
+    if (xRes < yRes)
+    {
+      float xLength = (float)xRes / yRes;
+      eyeCenter[0] = xLength * 0.5;
+    }
+    if (yRes < xRes)
+    {
+      float yLength = (float)yRes / xRes;
+      eyeCenter[1] = yLength * 0.5;
+    }
+
+    if (rootInfo.is_open()) // make sure the text file can be opened
+    {
+      // two root case, 7x7 interior grid
+      // iterate root 0 from top to bottom
+      int image_num = 0; // current output image number
+      currentTop = 2; // # of roots
+      for (float root0_y = 2.0; root0_y >= -2.0; root0_y -= 4.0/gridSize_y)
       {
-        // iterate root 1 from top to bottom
-        for (float root1_y = 2.0; root1_y >= -2.0; root1_y -= 4.0/gridSize_y)
+        // iterate root 0 from left to right
+        for (float root0_x = -2.0; root0_x <= 2.0; root0_x += 4.0/gridSize_x)
         {
-          // iterate root 1 from left to right
-          for (float root1_x = -2.0; root1_x <= 2.0; root1_x += 4.0/gridSize_x)
+          // iterate root 1 from top to bottom
+          for (float root1_y = 2.0; root1_y >= -2.0; root1_y -= 4.0/gridSize_y)
           {
-            char buffer[256]; // hold location to put image file
-            sprintf(buffer, "./frames/frame.%06i.ppm", image_num);
+            // iterate root 1 from left to right
+            for (float root1_x = -2.0; root1_x <= 2.0; root1_x += 4.0/gridSize_x)
+            {
+              char buffer[256]; // hold location to put image file
+              sprintf(buffer, "./frames/frame.%06i.ppm", image_num);
 
-            topRoots.clear(); // clear from last iteration
-            topRoots.push_back(VEC3F(root0_x, root0_y, 0.0));
-            topRoots.push_back(VEC3F(root1_x, root1_y, 0.0));
+              topRoots.clear(); // clear from last iteration
+              topRoots.push_back(VEC3F(root0_x, root0_y, 0.0));
+              topRoots.push_back(VEC3F(root1_x, root1_y, 0.0));
 
-            // cout << "topRoots0: " << topRoots[0] << endl;
-            // cout << "topRoots1: " << topRoots[1] << endl;
+              // cout << "topRoots0: " << topRoots[0] << endl;
+              // cout << "topRoots1: " << topRoots[1] << endl;
 
-            renderImage(xRes, yRes, buffer, image_num);
-            rootInfo << buffer << ": " << "topRoots0" << topRoots[0] << ", topRoots1" << topRoots[1] << endl; // write root info to text file
-            image_num++;
+              renderImage(xRes, yRes, buffer, image_num);
+              rootInfo << buffer << ": " << "topRoots0" << topRoots[0] << ", topRoots1" << topRoots[1] << endl; // write root info to text file
+              image_num++;
+            }
           }
         }
       }
+      rootInfo.close(); // close file after done writing
     }
-    rootInfo.close(); // close file after done writing
+    else 
+    {
+      cout << "Unable to open file." << endl;
+      return 0;
+    }
   }
-  else 
-  {
-    cout << "Unable to open file." << endl;
-    return 0;
-  }
 
-  // TEST
-  // int image_num = 0;
-  // char buffer[256];
-  // sprintf(buffer, "./frames/frame.%04i.ppm", image_num);
-  // topRoots.clear();
-  // topRoots.push_back(VEC3F(0.02736, -0.1997, 0.0));
-  // topRoots.push_back(VEC3F(-0.6074, 0.5007, 0.0));
-  // currentTop = 2;
-  // renderImage(xRes, yRes, buffer, image_num);
-
-
-  // compute fractal
-  // runOnce();
-
-  // initialize GLUT and GL
-  glutInit(&argc, argv);
-
-  // open the GL window
-  glvuWindow();
   return 1;
 }
 
