@@ -706,16 +706,25 @@ int main(int argc, char** argv)
       // iterate root 0 from top to bottom
       int image_num = 0; // current output image number
       currentTop = 2; // # of roots
-      for (float root0_y = 2.0; root0_y >= -2.0; root0_y -= 4.0/gridSize_y)
+      for (float root0_y = 2.0; root0_y >= 0; root0_y -= 4.0/gridSize_y)
       {
         // iterate root 0 from left to right
         for (float root0_x = -2.0; root0_x <= 2.0; root0_x += 4.0/gridSize_x)
         {
           // iterate root 1 from top to bottom
-          for (float root1_y = 2.0; root1_y >= -2.0; root1_y -= 4.0/gridSize_y)
+          for (float root1_y = root0_y; root1_y >= 0; root1_y -= 4.0/gridSize_y)
           {
+            float root0_x_start = 0;
+            if (root1_y == root0_y)
+            {
+              root0_x_start = root0_x;
+            }
+            else
+            {
+              root0_x_start = -2.0;
+            }
             // iterate root 1 from left to right
-            for (float root1_x = -2.0; root1_x <= 2.0; root1_x += 4.0/gridSize_x)
+            for (float root1_x = root0_x_start; root1_x <= 2.0; root1_x += 4.0/gridSize_x)
             {
               char buffer[256]; // hold location to put image file
               sprintf(buffer, "./frames/frame.%06i.ppm", image_num);
