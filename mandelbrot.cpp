@@ -518,8 +518,9 @@ void writePPM(const string &filename, int &xRes, int &yRes, const float *values)
 }
 
 //////////////////////////////////////////////////////////////////////////////////
+// Returns true if there is a shape in the image
 //////////////////////////////////////////////////////////////////////////////////
-void renderImage(int &xRes, int &yRes, const string &filename, int frame_num)
+bool renderImage(int &xRes, int &yRes, const string &filename, int frame_num)
 {
   // allocate the final image
   const int totalCells = xRes * yRes;
@@ -547,6 +548,7 @@ void renderImage(int &xRes, int &yRes, const string &filename, int frame_num)
   // cout << "root2x_pixel: " << root2x_pixel << endl;
   // cout << "root2y_pixel: " << root2y_pixel << endl;
 
+  bool shape = false;
 
   // cout << " Row: "; flush(cout);
   for (int y = 0; y < yRes; y++)
@@ -607,6 +609,7 @@ void renderImage(int &xRes, int &yRes, const string &filename, int frame_num)
         ppmOut[3 * pixelIndex] = 255.0f;
         ppmOut[3 * pixelIndex + 1] = 255.0f;
         ppmOut[3 * pixelIndex + 2] = 255.0f;
+        shape = true; // there is a fractal shape
       }
       else
       {
@@ -629,9 +632,17 @@ void renderImage(int &xRes, int &yRes, const string &filename, int frame_num)
     }
   }
 
-  writePPM(filename, xRes, yRes, ppmOut);
-
-  delete[] ppmOut;
+  if (shape)
+  { // fractal shape exists
+    writePPM(filename, xRes, yRes, ppmOut); // output fractal shape
+    delete[] ppmOut;
+    return true;
+  }
+  else
+  { // no fractal shape
+    delete[] ppmOut;
+    return false;
+  }
 }
 
 ///////////////////////////////////////////////////////////////////////
@@ -676,15 +687,16 @@ int main(int argc, char** argv)
   else // full space exploration
   {
     // create and open a text file to store root information alongside output image file names
-    ofstream rootInfo("frames/root_info.txt");
+    ofstream rootInfo("shapes/root_info.txt");
 
     int gridSize_x = 8; // default grid size if not specified by user
     int gridSize_y = 8; // default grid size if not specified by user
 
     // format: ./mandelbrot -full (grid size x) (grid size y)
-    if (argc == 3)
+    if (argc == 4)
     {
-      gridSize_x = atoi(argv[2]);
+      // set grid size to be user-specified
+      gridSize_x = atoi(argv[2]); 
       gridSize_y = atoi(argv[3]);
     }
 
@@ -727,18 +739,18 @@ int main(int argc, char** argv)
             for (float root1_x = root0_x_start; root1_x <= 2.0; root1_x += 4.0/gridSize_x)
             {
               char buffer[256]; // hold location to put image file
-              sprintf(buffer, "./frames/frame.%06i.ppm", image_num);
+              sprintf(buffer, "./shapes/frame.%06i.ppm", image_num);
 
               topRoots.clear(); // clear from last iteration
               topRoots.push_back(VEC3F(root0_x, root0_y, 0.0));
               topRoots.push_back(VEC3F(root1_x, root1_y, 0.0));
 
-              // cout << "topRoots0: " << topRoots[0] << endl;
-              // cout << "topRoots1: " << topRoots[1] << endl;
-
-              renderImage(xRes, yRes, buffer, image_num);
-              rootInfo << buffer << ": " << "topRoots0" << topRoots[0] << ", topRoots1" << topRoots[1] << endl; // write root info to text file
-              image_num++;
+              bool shape = renderImage(xRes, yRes, buffer, image_num); // compute shape, if any
+              if (shape)
+              { // only save root information if shape exists
+                rootInfo << buffer << ": " << "topRoots0" << topRoots[0] << ", topRoots1" << topRoots[1] << endl; // write root info to text file
+                image_num++;
+              }
             }
           }
         }
