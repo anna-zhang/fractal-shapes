@@ -715,7 +715,7 @@ int main(int argc, char** argv)
     if (rootInfo.is_open()) // make sure the text file can be opened
     {
       // two root case, 7x7 interior grid
-      // iterate root 0 from top to bottom
+      // iterate root 0 from top to bottom/2, so through y=0
       int image_num = 0; // current output image number
       currentTop = 2; // # of roots
       for (float root0_y = 2.0; root0_y >= 0; root0_y -= 4.0/gridSize_y)
@@ -724,7 +724,7 @@ int main(int argc, char** argv)
         for (float root0_x = -2.0; root0_x <= 2.0; root0_x += 4.0/gridSize_x)
         {
           // iterate root 1 from top to bottom
-          for (float root1_y = root0_y; root1_y >= 0; root1_y -= 4.0/gridSize_y)
+          for (float root1_y = root0_y; root1_y >= -2.0; root1_y -= 4.0/gridSize_y)
           {
             float root0_x_start = 0;
             if (root1_y == root0_y)
