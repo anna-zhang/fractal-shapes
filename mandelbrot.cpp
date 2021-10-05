@@ -723,21 +723,31 @@ int main(int argc, char** argv)
 
     int numCombinations = 8; // default # of random combinations if not specified by user
 
-    // format: ./mandelbrot -random (# of random combinations of two roots)
-    if (argc == 3)
+    // format: ./mandelbrot -random (-any or -pinned) (# of random combinations of two roots)
+    if (argc == 4)
     {
       // set # of random combinations to be user-specified
-      numCombinations = atoi(argv[2]);
-
-      if (numCombinations % 2 != 0)
-      {
-        numCombinations += 1; // make sure even number of roots to form pairs of roots
-      }
+      numCombinations = atoi(argv[3]);
+    }
+    else // error
+    {
+      cout << "Program usage: ./mandelbrot -random (-any or -pinned) (# of random combinations of two roots)" << endl;
+      return 0;
     }
 
     cout << "numCombinations: " << numCombinations << endl; // numCombinations holds # of images to generate (each image requires a pair of roots)
-    int numRoots = numCombinations * 2; // numRoots holds # of random root locations to generate, two are required for each image
+    bool pinned = false; // hold whether one root is pinned to the origin, as set by the -pinned flag
 
+    int numRoots = 0; 
+    if (strcmp(argv[2], "-pinned") == 0)
+    {
+      numRoots = numCombinations; // one root can move per image since the other root is pinned to the origin
+      pinned = true;
+    }
+    else
+    {
+      numRoots = numCombinations  * 2; // numRoots holds # of random root locations to generate, two are required for each image if two roots can move
+    }
     // test
     generateRoots(numRoots);
     
@@ -766,6 +776,14 @@ int main(int argc, char** argv)
 
     if (rootInfo.is_open()) // make sure the text file can be opened
     {
+      rootInfo << "Root information for: "; // save what this rootInfo came from
+      for (int i = 0; i < argc; i++)
+      {
+        rootInfo << argv[i] << " ";
+      }
+      rootInfo << endl;
+      
+
       // two root case
       int image_num = 0; // current output image number
       currentTop = 2; // # of roots
@@ -775,8 +793,16 @@ int main(int argc, char** argv)
         sprintf(buffer, "./random/frame.%06i.ppm", image_num);
 
         topRoots.clear(); // clear from last iteration
-        topRoots.push_back(VEC3F(randomRoots[i * 2][0], randomRoots[i * 2][1], 0.0));
-        topRoots.push_back(VEC3F(randomRoots[i * 2 + 1][0], randomRoots[i * 2 + 1][1], 0.0));
+        if (pinned)
+        {
+          topRoots.push_back(VEC3F(0.0, 0.0, 0.0)); // first root is pinned to the origin
+          topRoots.push_back(VEC3F(randomRoots[i][0], randomRoots[i][1], 0.0)); // second root is in a random position
+        }
+        else
+        {
+          topRoots.push_back(VEC3F(randomRoots[i * 2][0], randomRoots[i * 2][1], 0.0)); // first root is in a random position
+          topRoots.push_back(VEC3F(randomRoots[i * 2 + 1][0], randomRoots[i * 2 + 1][1], 0.0)); // second root is in a random position
+        }
 
         bool shape = renderImage(xRes, yRes, buffer, image_num); // compute shape, if any
         if (shape)
