@@ -9,6 +9,7 @@ mandelbrot
 /frames/frame*.ppm
 /shapes/
 /random/
+/pinned/
 
 # Root information
 /frames/root_info.txt

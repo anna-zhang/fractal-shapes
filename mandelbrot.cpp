@@ -676,8 +676,9 @@ int main(int argc, char** argv)
   // every root on screen is between x[-2.0, 2.0], y[-2.0, 2.0]
   // top right is (2.0, 2.0), bottom right is (2.0, -2.0), bottom left is (-2.0, 2.0), top left is (-2.0, 2.0)
 
+  // all two root polynomial
   // detect mode
-  int mode = 0; // 0 for full space exploration, 1 for single exploration, 2 for random roots exploration; default full space exploration
+  int mode = 0; // 0 for full space exploration, 1 for single exploration, 2 for random roots exploration; 3 for one root pinned exploration; default full space exploration
   if (argc > 1)
   {
     if (strcmp(argv[1], "-single") == 0)
@@ -688,11 +689,15 @@ int main(int argc, char** argv)
     {
       mode = 2; // set to random roots exploration mode
     }
+    else if (strcmp(argv[1], "-pinned") == 0) 
+    {
+      mode = 3; // set to one root pinned and other root changing exploration mode
+    }
   }
   
   if (mode == 1) // single exploration
   {
-    // format: ./mandelbrot -single (# of top roots n) (root0_x) (root0_y) ... (ootn-1_x) (rootn-1_y)
+    // format: ./mandelbrot -single (# of top roots n) (root0_x) (root0_y) ... (rootn-1_x) (rootn-1_y)
     int num_top_roots = atoi(argv[2]);
     currentTop = num_top_roots; // number of roots
     // cout << "num_top_roots: " << num_top_roots << endl;
@@ -787,14 +792,72 @@ int main(int argc, char** argv)
       cout << "Unable to open file." << endl;
       return 0;
     }
-
-
-    
-
-
-    
   }
-  else // full space exploration
+  else if (mode == 3)
+  {
+    // create and open a text file to store root information alongside output image file names
+    ofstream rootInfo("pinned/root_info.txt");
+
+    int gridSize_x = 8; // default grid size if not specified by user
+    int gridSize_y = 8; // default grid size if not specified by user
+
+    // format: ./mandelbrot -pinned (grid size x) (grid size y)
+    if (argc == 4)
+    {
+      // set grid size to be user-specified
+      gridSize_x = atoi(argv[2]); 
+      gridSize_y = atoi(argv[3]);
+    }
+
+    // In case the field is rectangular, make sure to center the eye
+    if (xRes < yRes)
+    {
+      float xLength = (float)xRes / yRes;
+      eyeCenter[0] = xLength * 0.5;
+    }
+    if (yRes < xRes)
+    {
+      float yLength = (float)yRes / xRes;
+      eyeCenter[1] = yLength * 0.5;
+    }
+
+    if (rootInfo.is_open()) // make sure the text file can be opened
+    {
+      // two root case
+      // iterate root 0 from top to bottom/2, so through y=0
+      int image_num = 0; // current output image number
+      currentTop = 2; // # of roots
+        
+      // root 0 is pinned to (0.0, 0.0); iterate root 1 from left to right
+      for (float root1_x = -2.0; root1_x <= 2.0; root1_x += 4.0/gridSize_x)
+      {
+        for (float root1_y = 2.0; root1_y >= 0; root1_y -= 4.0/gridSize_y)
+        {
+          char buffer[256]; // hold location to put image file
+          sprintf(buffer, "./pinned/frame.%06i.ppm", image_num);
+
+          topRoots.clear(); // clear from last iteration
+          topRoots.push_back(VEC3F(0.0, 0.0, 0.0)); // pin first root to (0.0, 0.0)
+          topRoots.push_back(VEC3F(root1_x, root1_y, 0.0));
+
+          bool shape = renderImage(xRes, yRes, buffer, image_num); // compute shape, if any
+          if (shape)
+          { // only save root information if shape exists
+            rootInfo << buffer << ": " << "topRoots0" << topRoots[0] << ", topRoots1" << topRoots[1] << endl; // write root info to text file
+            image_num++;
+          }
+        }
+      }
+      rootInfo.close(); // close file after done writing
+    }
+    else 
+    {
+      cout << "Unable to open file." << endl;
+      return 0;
+    }
+
+  }
+  else // full space exploration with two roots
   {
     // create and open a text file to store root information alongside output image file names
     ofstream rootInfo("shapes/root_info.txt");
