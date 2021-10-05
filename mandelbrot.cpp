@@ -2,6 +2,7 @@
 #include <cstdio>
 #include "FIELD_2D.h"
 #include "VEC3F.h"
+#include <random>
 
 #ifndef GL_SILENCE_DEPRECATION
 #define GL_SILENCE_DEPRECATION
@@ -84,7 +85,8 @@ void runOnce();
 // put it at the bottom of the file
 void runEverytime();
 
-vector<VEC3F> topRoots;
+vector<VEC3F> topRoots; // hold top roots
+vector<VEC3F> randomRoots; // hold roots generated with random numbers
 
 ///////////////////////////////////////////////////////////////////////
 // Figure out which field element is being pointed at, set xField and
@@ -492,6 +494,27 @@ VEC3F complexMultiply(VEC3F left, VEC3F right)
   return VEC3F(a * c - b * d, a * d + b * c, 0.0);
 }
 
+///////////////////////////////////////////////////////////////////////////////////////////////
+// Generate random root locations: X[-2.0, 2.0], Y[-2.0, 2.0] and store in randomRoots
+///////////////////////////////////////////////////////////////////////////////////////////////
+void generateRoots(int numRoots)
+{
+  mt19937 gen(456); // initialize generator with seed
+  uniform_real_distribution<float> dist(-2.0, 2.0); // set range for random number
+
+  for (int i = 0; i < numRoots; i++)
+  {
+    VEC3F randomRoot = VEC3F(0.0, 0.0, 0.0);
+    for (int j = 0; j < 2; j++) // each root requires two random numbers, one for x and one for y
+    {
+      float randomNum = dist(gen);
+      randomRoot[j] = randomNum; // update root position to random generated
+    }
+    randomRoots.push_back(VEC3F(randomRoot[0], randomRoot[1], 0.0f));
+  }
+}
+
+
 //////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////////
 void writePPM(const string &filename, int &xRes, int &yRes, const float *values)
@@ -654,18 +677,22 @@ int main(int argc, char** argv)
   // top right is (2.0, 2.0), bottom right is (2.0, -2.0), bottom left is (-2.0, 2.0), top left is (-2.0, 2.0)
 
   // detect mode
-  int mode = 0; // 0 for full space exploration, 1 for single exploration; default full space exploration
+  int mode = 0; // 0 for full space exploration, 1 for single exploration, 2 for random roots exploration; default full space exploration
   if (argc > 1)
   {
     if (strcmp(argv[1], "-single") == 0)
     {
       mode = 1; // set to single exploration mode
     }
+    else if (strcmp(argv[1], "-random") == 0)
+    {
+      mode = 2; // set to random roots exploration mode
+    }
   }
   
   if (mode == 1) // single exploration
   {
-    // format: ./mandelbrot; -single (# of top roots n) (root0_x) (root0_y) ... (ootn-1_x) (rootn-1_y)
+    // format: ./mandelbrot -single (# of top roots n) (root0_x) (root0_y) ... (ootn-1_x) (rootn-1_y)
     int num_top_roots = atoi(argv[2]);
     currentTop = num_top_roots; // number of roots
     // cout << "num_top_roots: " << num_top_roots << endl;
@@ -683,6 +710,89 @@ int main(int argc, char** argv)
 
     // open the GL window
     glvuWindow();
+  }
+  else if (mode == 2) // random exploration
+  {
+    // create and open a text file to store root information alongside output image file names
+    ofstream rootInfo("random/root_info.txt");
+
+    int numCombinations = 8; // default # of random combinations if not specified by user
+
+    // format: ./mandelbrot -random (# of random combinations of two roots)
+    if (argc == 3)
+    {
+      // set # of random combinations to be user-specified
+      numCombinations = atoi(argv[2]);
+
+      if (numCombinations % 2 != 0)
+      {
+        numCombinations += 1; // make sure even number of roots to form pairs of roots
+      }
+    }
+
+    cout << "numCombinations: " << numCombinations << endl; // numCombinations holds # of images to generate (each image requires a pair of roots)
+    int numRoots = numCombinations * 2; // numRoots holds # of random root locations to generate, two are required for each image
+
+    // test
+    generateRoots(numRoots);
+    
+    if (numRoots!= randomRoots.size()) // make sure number of random roots generated is correct
+    {
+      cout << "generateRoots failed" << endl;
+      return 0;
+    }
+
+    for (int i = 0; i < numRoots; i++)
+    {
+      cout << "randomRoot[" << i << "]: " << randomRoots[i] << endl;
+    }
+
+    // In case the field is rectangular, make sure to center the eye
+    if (xRes < yRes)
+    {
+      float xLength = (float)xRes / yRes;
+      eyeCenter[0] = xLength * 0.5;
+    }
+    if (yRes < xRes)
+    {
+      float yLength = (float)yRes / xRes;
+      eyeCenter[1] = yLength * 0.5;
+    }
+
+    if (rootInfo.is_open()) // make sure the text file can be opened
+    {
+      // two root case
+      int image_num = 0; // current output image number
+      currentTop = 2; // # of roots
+      for (int i = 0; i < numCombinations; i++) // go through root combinations
+      {
+        char buffer[256]; // hold location to put image file
+        sprintf(buffer, "./random/frame.%06i.ppm", image_num);
+
+        topRoots.clear(); // clear from last iteration
+        topRoots.push_back(VEC3F(randomRoots[i * 2][0], randomRoots[i * 2][1], 0.0));
+        topRoots.push_back(VEC3F(randomRoots[i * 2 + 1][0], randomRoots[i * 2 + 1][1], 0.0));
+
+        bool shape = renderImage(xRes, yRes, buffer, image_num); // compute shape, if any
+        if (shape)
+        { // only save root information if shape exists
+          rootInfo << buffer << ": " << "topRoots0" << topRoots[0] << ", topRoots1" << topRoots[1] << endl; // write root info to text file
+          image_num++;
+        }
+      }
+      rootInfo.close(); // close file after done writing
+    }
+    else 
+    {
+      cout << "Unable to open file." << endl;
+      return 0;
+    }
+
+
+    
+
+
+    
   }
   else // full space exploration
   {
@@ -714,7 +824,7 @@ int main(int argc, char** argv)
 
     if (rootInfo.is_open()) // make sure the text file can be opened
     {
-      // two root case, 7x7 interior grid
+      // two root case
       // iterate root 0 from top to bottom/2, so through y=0
       int image_num = 0; // current output image number
       currentTop = 2; // # of roots

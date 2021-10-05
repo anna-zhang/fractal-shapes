@@ -7,6 +7,8 @@ mandelbrot
 
 # Images
 /frames/frame*.ppm
+/shapes/
+/random/
 
 # Root information
 /frames/root_info.txt
