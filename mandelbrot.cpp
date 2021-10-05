@@ -776,7 +776,7 @@ int main(int argc, char** argv)
 
     if (rootInfo.is_open()) // make sure the text file can be opened
     {
-      rootInfo << "Root information for: "; // save what this rootInfo came from
+      rootInfo << "Root information for: "; // save where the root information came from in the text file
       for (int i = 0; i < argc; i++)
       {
         rootInfo << argv[i] << " ";
@@ -834,6 +834,11 @@ int main(int argc, char** argv)
       gridSize_x = atoi(argv[2]); 
       gridSize_y = atoi(argv[3]);
     }
+    else // error
+    {
+      cout << "Program usage: ./mandelbrot -pinned (grid size x) (grid size y)" << endl;
+      return 0;
+    }
 
     // In case the field is rectangular, make sure to center the eye
     if (xRes < yRes)
@@ -849,6 +854,13 @@ int main(int argc, char** argv)
 
     if (rootInfo.is_open()) // make sure the text file can be opened
     {
+      rootInfo << "Root information for: "; // save where the root information came from in the text file
+      for (int i = 0; i < argc; i++)
+      {
+        rootInfo << argv[i] << " ";
+      }
+      rootInfo << endl;
+      
       // two root case
       // iterate root 0 from top to bottom/2, so through y=0
       int image_num = 0; // current output image number
@@ -898,6 +910,11 @@ int main(int argc, char** argv)
       gridSize_x = atoi(argv[2]); 
       gridSize_y = atoi(argv[3]);
     }
+    else // error
+    {
+      cout << "Program usage: ./mandelbrot -full (grid size x) (grid size y)" << endl;
+      return 0;
+    }
 
     // In case the field is rectangular, make sure to center the eye
     if (xRes < yRes)
@@ -913,6 +930,13 @@ int main(int argc, char** argv)
 
     if (rootInfo.is_open()) // make sure the text file can be opened
     {
+      rootInfo << "Root information for: "; // save where the root information came from in the text file
+      for (int i = 0; i < argc; i++)
+      {
+        rootInfo << argv[i] << " ";
+      }
+      rootInfo << endl;
+      
       // two root case
       // iterate root 0 from top to bottom/2, so through y=0
       int image_num = 0; // current output image number
