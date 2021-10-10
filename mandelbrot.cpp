@@ -723,6 +723,8 @@ int main(int argc, char** argv)
 
     int numCombinations = 8; // default # of random combinations if not specified by user
 
+    int rootCombinations = 0; // hold number of root combinations tried
+
     // format: ./mandelbrot -random (-any or -pinned) (# of random combinations of two roots)
     if (argc == 4)
     {
@@ -805,12 +807,15 @@ int main(int argc, char** argv)
         }
 
         bool shape = renderImage(xRes, yRes, buffer, image_num); // compute shape, if any
+        rootCombinations += 1; // increment total # of root combinations tried
+
         if (shape)
         { // only save root information if shape exists
           rootInfo << buffer << ": " << "topRoots0" << topRoots[0] << ", topRoots1" << topRoots[1] << endl; // write root info to text file
           image_num++;
         }
       }
+      rootInfo << "rootCombinations tried: " << rootCombinations << endl;
       rootInfo.close(); // close file after done writing
     }
     else 
@@ -826,6 +831,8 @@ int main(int argc, char** argv)
 
     int gridSize_x = 8; // default grid size if not specified by user
     int gridSize_y = 8; // default grid size if not specified by user
+
+    int rootCombinations = 0; // hold number of root combinations tried
 
     // format: ./mandelbrot -pinned (grid size x) (grid size y)
     if (argc == 4)
@@ -879,6 +886,8 @@ int main(int argc, char** argv)
           topRoots.push_back(VEC3F(root1_x, root1_y, 0.0));
 
           bool shape = renderImage(xRes, yRes, buffer, image_num); // compute shape, if any
+          rootCombinations += 1; // increment total # of root combinations tried
+        
           if (shape)
           { // only save root information if shape exists
             rootInfo << buffer << ": " << "topRoots0" << topRoots[0] << ", topRoots1" << topRoots[1] << endl; // write root info to text file
@@ -886,6 +895,7 @@ int main(int argc, char** argv)
           }
         }
       }
+      rootInfo << "rootCombinations tried: " << rootCombinations << endl;
       rootInfo.close(); // close file after done writing
     }
     else 
@@ -902,6 +912,8 @@ int main(int argc, char** argv)
 
     int gridSize_x = 8; // default grid size if not specified by user
     int gridSize_y = 8; // default grid size if not specified by user
+
+    int rootCombinations = 0; // hold number of root combinations tried
 
     // format: ./mandelbrot -full (grid size x) (grid size y)
     if (argc == 4)
@@ -969,6 +981,7 @@ int main(int argc, char** argv)
               topRoots.push_back(VEC3F(root1_x, root1_y, 0.0));
 
               bool shape = renderImage(xRes, yRes, buffer, image_num); // compute shape, if any
+              rootCombinations += 1; // increment total # of root combinations tried
               if (shape)
               { // only save root information if shape exists
                 rootInfo << buffer << ": " << "topRoots0" << topRoots[0] << ", topRoots1" << topRoots[1] << endl; // write root info to text file
@@ -978,6 +991,7 @@ int main(int argc, char** argv)
           }
         }
       }
+      rootInfo << "rootCombinations tried: " << rootCombinations << endl;
       rootInfo.close(); // close file after done writing
     }
     else 
