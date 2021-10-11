@@ -88,6 +88,8 @@ void runEverytime();
 vector<VEC3F> topRoots; // hold top roots
 vector<VEC3F> randomRoots; // hold roots generated with random numbers
 
+bool colorRed = false; // default coloring roots red to be false
+
 ///////////////////////////////////////////////////////////////////////
 // Figure out which field element is being pointed at, set xField and
 // yField to them
@@ -644,13 +646,16 @@ bool renderImage(int &xRes, int &yRes, const string &filename, int frame_num)
         ppmOut[3 * pixelIndex + 2] = 0.0f;
       }
 
-      // red square around roots to be able to see root positions
-      if (((x > (root1x_pixel - 10.0f)) && (x < (root1x_pixel + 10.0f)) && (y > (root1y_pixel - 10.0f)) && (y < (root1y_pixel + 10.0f))) || ((x > (root2x_pixel - 10.0f)) && (x < (root2x_pixel + 10.0f)) && (y > (root2y_pixel - 10.0f)) && (y < (root2y_pixel + 10.0f))))
+      if (colorRed)
       {
-        // cout << "near root" << endl;
-        ppmOut[3 * pixelIndex] = 255.0f;
-        ppmOut[3 * pixelIndex + 1] = 0.0f;
-        ppmOut[3 * pixelIndex + 2] = 0.0f;
+        // red square around roots to be able to see root positions
+        if (((x > (root1x_pixel - 10.0f)) && (x < (root1x_pixel + 10.0f)) && (y > (root1y_pixel - 10.0f)) && (y < (root1y_pixel + 10.0f))) || ((x > (root2x_pixel - 10.0f)) && (x < (root2x_pixel + 10.0f)) && (y > (root2y_pixel - 10.0f)) && (y < (root2y_pixel + 10.0f))))
+        {
+          // cout << "near root" << endl;
+          ppmOut[3 * pixelIndex] = 255.0f;
+          ppmOut[3 * pixelIndex + 1] = 0.0f;
+          ppmOut[3 * pixelIndex + 2] = 0.0f;
+        }
       }
     }
   }
@@ -725,15 +730,24 @@ int main(int argc, char** argv)
 
     int rootCombinations = 0; // hold number of root combinations tried
 
-    // format: ./mandelbrot -random (-any or -pinned) (# of random combinations of two roots)
-    if (argc == 4)
+    // format: ./mandelbrot -random (-any or -pinned) (# of random combinations of two roots) (-color or -noColor)
+    if (argc == 5)
     {
       // set # of random combinations to be user-specified
       numCombinations = atoi(argv[3]);
+
+      if (strcmp(argv[4], "-color") == 0)
+      {
+        colorRed = true; // color roots red
+      }
+      else
+      {
+        colorRed = false; // don't color roots red
+      }
     }
     else // error
     {
-      cout << "Program usage: ./mandelbrot -random (-any or -pinned) (# of random combinations of two roots)" << endl;
+      cout << "Program usage: ./mandelbrot -random (-any or -pinned) (# of random combinations of two roots) (-color or -noColor)" << endl;
       return 0;
     }
 
@@ -834,16 +848,25 @@ int main(int argc, char** argv)
 
     int rootCombinations = 0; // hold number of root combinations tried
 
-    // format: ./mandelbrot -pinned (grid size x) (grid size y)
-    if (argc == 4)
+    // format: ./mandelbrot -pinned (grid size x) (grid size y) (-color or -noColor)
+    if (argc == 5)
     {
       // set grid size to be user-specified
       gridSize_x = atoi(argv[2]); 
       gridSize_y = atoi(argv[3]);
+
+      if (strcmp(argv[4], "-color") == 0)
+      {
+        colorRed = true; // color roots red
+      }
+      else
+      {
+        colorRed = false; // don't color roots red
+      }
     }
     else // error
     {
-      cout << "Program usage: ./mandelbrot -pinned (grid size x) (grid size y)" << endl;
+      cout << "Program usage: ./mandelbrot -pinned (grid size x) (grid size y) (-color or -noColor)" << endl;
       return 0;
     }
 
@@ -915,16 +938,25 @@ int main(int argc, char** argv)
 
     int rootCombinations = 0; // hold number of root combinations tried
 
-    // format: ./mandelbrot -full (grid size x) (grid size y)
-    if (argc == 4)
+    // format: ./mandelbrot -full (grid size x) (grid size y) (-color or -noColor)
+    if (argc == 5)
     {
       // set grid size to be user-specified
       gridSize_x = atoi(argv[2]); 
       gridSize_y = atoi(argv[3]);
+
+      if (strcmp(argv[4], "-color") == 0)
+      {
+        colorRed = true; // color roots red
+      }
+      else
+      {
+        colorRed = false; // don't color roots red
+      }
     }
     else // error
     {
-      cout << "Program usage: ./mandelbrot -full (grid size x) (grid size y)" << endl;
+      cout << "Program usage: ./mandelbrot -full (grid size x) (grid size y) (-color or -noColor)" << endl;
       return 0;
     }
 
