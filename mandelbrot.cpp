@@ -551,8 +551,8 @@ bool renderImage(int &xRes, int &yRes, const string &filename, int frame_num)
   const int totalCells = xRes * yRes;
   float *ppmOut = new float[3 * totalCells];
 
-  float xLength = 4.5;
-  float yLength = 4.5;
+  float xLength = 4.0; // get standard X[-2, 2] Y[-2, 2] viewing window
+  float yLength = 4.0;
 
   int maxIterations = 100;
   float escapeRadius = 200.0; // to match the js version
@@ -562,11 +562,13 @@ bool renderImage(int &xRes, int &yRes, const string &filename, int frame_num)
   float xHalf = xLength * 0.5;
   float yHalf = yLength * 0.5;
 
+  VEC3F origin = VEC3F(0.0, 0.0, 0.0); // default origin / center of mass at (0.0, 0.0)
+
   // get the pixel values of the roots, changing from x[-2 x 2], y[-2 x 2] to [xRes x yRes]
-  float root1x_pixel = (topRoots[0][0] + 2.0f) * (xRes / 4.0f);
-  float root1y_pixel = (topRoots[0][1] + 2.0f) * (yRes / 4.0f);
-  float root2x_pixel = (topRoots[1][0] + 2.0f) * (xRes / 4.0f);
-  float root2y_pixel = (topRoots[1][1] + 2.0f) * (yRes / 4.0f);
+  float root1x_pixel = (topRoots[0][0] + xHalf + origin[0]) * (1.0 / dx);
+  float root1y_pixel = (topRoots[0][1] + xHalf + origin[1]) * (1.0 / dx);
+  float root2x_pixel = (topRoots[1][0] + xHalf + origin[0]) * (1.0 / dx);
+  float root2y_pixel = (topRoots[1][1] + xHalf + origin[1]) * (1.0 / dx);
 
   // cout << "root1x_pixel: " << root1x_pixel << endl;
   // cout << "root1y_pixel: " << root1y_pixel << endl;
@@ -1050,8 +1052,8 @@ void runEverytime()
 ///////////////////////////////////////////////////////////////////////
 void runOnce()
 {
-  float xLength = 4.5;
-  float yLength = 4.5;
+  float xLength = 4.0; // get standard X[-2, 2] Y[-2, 2] viewing window
+  float yLength = 4.0;
 
   int maxIterations = 100;
   float escapeRadius = 200.0; // to match the js version
