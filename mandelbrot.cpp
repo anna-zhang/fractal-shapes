@@ -89,6 +89,7 @@ vector<VEC3F> topRoots; // hold top roots
 vector<VEC3F> randomRoots; // hold roots generated with random numbers
 
 bool colorRed = false; // default coloring roots red to be false
+bool centeredShape = false; // default don't center shape
 
 ///////////////////////////////////////////////////////////////////////
 // Figure out which field element is being pointed at, set xField and
@@ -545,7 +546,7 @@ void writePPM(const string &filename, int &xRes, int &yRes, const float *values)
 //////////////////////////////////////////////////////////////////////////////////
 // Returns true if there is a shape in the image
 //////////////////////////////////////////////////////////////////////////////////
-bool renderImage(int &xRes, int &yRes, const string &filename, int frame_num)
+bool renderImage(int &xRes, int &yRes, const string &filename, int frame_num, VEC3F centerOfMass, bool centered)
 {
   // allocate the final image
   const int totalCells = xRes * yRes;
@@ -562,20 +563,25 @@ bool renderImage(int &xRes, int &yRes, const string &filename, int frame_num)
   float xHalf = xLength * 0.5;
   float yHalf = yLength * 0.5;
 
-  VEC3F origin = VEC3F(0.0, 0.0, 0.0); // default origin / center of mass at (0.0, 0.0)
+  VEC3F origin = centerOfMass; // origin is center of mass; first time compute, center of mass is at the standard origin of (0.0, 0.0)
 
   // get the pixel values of the roots, changing from x[-2 x 2], y[-2 x 2] to [xRes x yRes]
-  float root1x_pixel = (topRoots[0][0] + xHalf + origin[0]) * (1.0 / dx);
-  float root1y_pixel = (topRoots[0][1] + xHalf + origin[1]) * (1.0 / dx);
-  float root2x_pixel = (topRoots[1][0] + xHalf + origin[0]) * (1.0 / dx);
-  float root2y_pixel = (topRoots[1][1] + xHalf + origin[1]) * (1.0 / dx);
+  float root1x_pixel = (topRoots[0][0] + xHalf - origin[0]) * (1.0 / dx);
+  float root1y_pixel = (topRoots[0][1] + xHalf - origin[1]) * (1.0 / dx);
+  float root2x_pixel = (topRoots[1][0] + xHalf - origin[0]) * (1.0 / dx);
+  float root2y_pixel = (topRoots[1][1] + xHalf - origin[1]) * (1.0 / dx);
 
   // cout << "root1x_pixel: " << root1x_pixel << endl;
   // cout << "root1y_pixel: " << root1y_pixel << endl;
   // cout << "root2x_pixel: " << root2x_pixel << endl;
   // cout << "root2y_pixel: " << root2y_pixel << endl;
 
-  bool shape = false;
+  bool shape = false; // hold whether there is a shape (whether there are white pixels)
+
+  // to calculate shape's center of mass
+  float xPosSum = 0.0; // sum of x values of white pixels
+  float yPosSum = 0.0; // sum of y values of white pixels
+  int numWhitePixels = 0; // number of white pixels
 
   // cout << " Row: "; flush(cout);
   for (int y = 0; y < yRes; y++)
@@ -585,8 +591,8 @@ bool renderImage(int &xRes, int &yRes, const string &filename, int frame_num)
     {
       // getting the center coordinate here is a little sticky
       VEC3F center;
-      center[0] = -xHalf + x * dx;
-      center[1] = -yHalf + y * dy;
+      center[0] = -xHalf + origin[0] + x * dx;
+      center[1] = -yHalf + origin[1] + y * dy;
 
       VEC3F iterate = center; // iterate is q
       VEC3F p; // hold calculated polynomial
@@ -632,6 +638,15 @@ bool renderImage(int &xRes, int &yRes, const string &filename, int frame_num)
       {
         // cout << "white" << endl;
         field(x, y) = 1.0; // did not escape, color white
+
+        if (!centered)
+        {
+          numWhitePixels += 1; // increment total number of white pixels
+          xPosSum += center[0]; // increment sum of x positions of white pixels
+          yPosSum += center[1]; // increment sum of y positions of white pixels
+        }
+        
+
         // set, in final image
         ppmOut[3 * pixelIndex] = 255.0f;
         ppmOut[3 * pixelIndex + 1] = 255.0f;
@@ -663,10 +678,21 @@ bool renderImage(int &xRes, int &yRes, const string &filename, int frame_num)
   }
 
   if (shape)
-  { // fractal shape exists
-    writePPM(filename, xRes, yRes, ppmOut); // output fractal shape
-    delete[] ppmOut;
-    return true;
+  { 
+    // fractal shape exists
+    if (!centered)
+    {
+      VEC3F centerOfMass = VEC3F(xPosSum / float(numWhitePixels), yPosSum / float(numWhitePixels), 0.0);
+      cout << "centerOfMass: " << centerOfMass << endl;
+      delete[] ppmOut;
+      return renderImage(xRes, yRes, filename, frame_num, centerOfMass, true); // recompute julia with shape's center of mass as new origin
+    }
+    else
+    {
+      writePPM(filename, xRes, yRes, ppmOut); // output fractal shape
+      delete[] ppmOut;
+      return true;
+    }   
   }
   else
   { // no fractal shape
@@ -732,8 +758,8 @@ int main(int argc, char** argv)
 
     int rootCombinations = 0; // hold number of root combinations tried
 
-    // format: ./mandelbrot -random (-any or -pinned) (# of random combinations of two roots) (-color or -noColor)
-    if (argc == 5)
+    // format: ./mandelbrot -random (-any or -pinned) (# of random combinations of two roots) (-color or -noColor) (-center or -notCentered)
+    if (argc == 6)
     {
       // set # of random combinations to be user-specified
       numCombinations = atoi(argv[3]);
@@ -746,10 +772,21 @@ int main(int argc, char** argv)
       {
         colorRed = false; // don't color roots red
       }
+
+      if (strcmp(argv[5], "-center") == 0)
+      {
+        centeredShape = false; // center the shape
+      }
+      else
+      {
+        centeredShape = true; // don't center the shape
+      }
+
+      
     }
     else // error
     {
-      cout << "Program usage: ./mandelbrot -random (-any or -pinned) (# of random combinations of two roots) (-color or -noColor)" << endl;
+      cout << "Program usage: ./mandelbrot -random (-any or -pinned) (# of random combinations of two roots) (-color or -noColor) (-center or -notCentered)" << endl;
       return 0;
     }
 
@@ -822,7 +859,7 @@ int main(int argc, char** argv)
           topRoots.push_back(VEC3F(randomRoots[i * 2 + 1][0], randomRoots[i * 2 + 1][1], 0.0)); // second root is in a random position
         }
 
-        bool shape = renderImage(xRes, yRes, buffer, image_num); // compute shape, if any
+        bool shape = renderImage(xRes, yRes, buffer, image_num, VEC3F(0.0, 0.0, 0.0), centeredShape); // compute shape, if any
         rootCombinations += 1; // increment total # of root combinations tried
 
         if (shape)
@@ -850,8 +887,8 @@ int main(int argc, char** argv)
 
     int rootCombinations = 0; // hold number of root combinations tried
 
-    // format: ./mandelbrot -pinned (grid size x) (grid size y) (-color or -noColor)
-    if (argc == 5)
+    // format: ./mandelbrot -pinned (grid size x) (grid size y) (-color or -noColor) (-center or -notCentered)
+    if (argc == 6)
     {
       // set grid size to be user-specified
       gridSize_x = atoi(argv[2]); 
@@ -865,10 +902,19 @@ int main(int argc, char** argv)
       {
         colorRed = false; // don't color roots red
       }
+
+      if (strcmp(argv[5], "-center") == 0)
+      {
+        centeredShape = false; // center the shape
+      }
+      else
+      {
+        centeredShape = true; // don't center the shape
+      }
     }
     else // error
     {
-      cout << "Program usage: ./mandelbrot -pinned (grid size x) (grid size y) (-color or -noColor)" << endl;
+      cout << "Program usage: ./mandelbrot -pinned (grid size x) (grid size y) (-color or -noColor) (-center or -notCentered)" << endl;
       return 0;
     }
 
@@ -910,7 +956,7 @@ int main(int argc, char** argv)
           topRoots.push_back(VEC3F(0.0, 0.0, 0.0)); // pin first root to (0.0, 0.0)
           topRoots.push_back(VEC3F(root1_x, root1_y, 0.0));
 
-          bool shape = renderImage(xRes, yRes, buffer, image_num); // compute shape, if any
+          bool shape = renderImage(xRes, yRes, buffer, image_num, VEC3F(0.0, 0.0, 0.0), centeredShape); // compute shape, if any
           rootCombinations += 1; // increment total # of root combinations tried
         
           if (shape)
@@ -940,8 +986,8 @@ int main(int argc, char** argv)
 
     int rootCombinations = 0; // hold number of root combinations tried
 
-    // format: ./mandelbrot -full (grid size x) (grid size y) (-color or -noColor)
-    if (argc == 5)
+    // format: ./mandelbrot -full (grid size x) (grid size y) (-color or -noColor) (-center or -notCentered)
+    if (argc == 6)
     {
       // set grid size to be user-specified
       gridSize_x = atoi(argv[2]); 
@@ -955,10 +1001,19 @@ int main(int argc, char** argv)
       {
         colorRed = false; // don't color roots red
       }
+
+      if (strcmp(argv[5], "-center") == 0)
+      {
+        centeredShape = false; // center the shape
+      }
+      else
+      {
+        centeredShape = true; // don't center the shape
+      }
     }
     else // error
     {
-      cout << "Program usage: ./mandelbrot -full (grid size x) (grid size y) (-color or -noColor)" << endl;
+      cout << "Program usage: ./mandelbrot -full (grid size x) (grid size y) (-color or -noColor) (-center or -notCentered)" << endl;
       return 0;
     }
 
@@ -1014,7 +1069,7 @@ int main(int argc, char** argv)
               topRoots.push_back(VEC3F(root0_x, root0_y, 0.0));
               topRoots.push_back(VEC3F(root1_x, root1_y, 0.0));
 
-              bool shape = renderImage(xRes, yRes, buffer, image_num); // compute shape, if any
+              bool shape = renderImage(xRes, yRes, buffer, image_num, VEC3F(0.0, 0.0, 0.0), centeredShape); // compute shape, if any
               rootCombinations += 1; // increment total # of root combinations tried
               if (shape)
               { // only save root information if shape exists
