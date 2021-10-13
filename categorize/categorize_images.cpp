@@ -159,6 +159,7 @@ int main(int argc, char** argv)
                         int totalPixels = width * height; // total number of pixels in the image
 
                         int pixelMatches = 0; // hold number of pixel matches between the reference image and the image to categorize
+                        int reflectedPixelMatches = 0; // hold number of pixel matches between the reference image and the image to categorize reflected across the y axis
                         
                         if (readSuccess) // uncategorized image is successfully read
                         {
@@ -169,17 +170,27 @@ int main(int argc, char** argv)
                                 {
                                     int pixelIndex = x + (height - y) * width; // calculate pixel index for pixel values array that represents the final output image
 
+                                    int reflectedPixelIndex = (width - x) + (height - y) * width; // calculate pixel index for pixel value that represents the image reflected across the y axis
+
                                     if ((float(reference_pixels[3 * pixelIndex]) == float(img_pixels[3 * pixelIndex])) && (float(reference_pixels[3 * pixelIndex + 1]) == float(img_pixels[3 * pixelIndex + 1])) && (float(reference_pixels[3 * pixelIndex + 2]) == float(img_pixels[3 * pixelIndex + 2])))
                                     {
                                         // the red, green, and blue values of the pixel are the same, so the two images have the same value at that pixel
                                         pixelMatches += 1;
+                                    }
+
+                                    if ((float(reference_pixels[3 * pixelIndex]) == float(img_pixels[3 * reflectedPixelIndex])) && (float(reference_pixels[3 * pixelIndex + 1]) == float(img_pixels[3 * reflectedPixelIndex + 1])) && (float(reference_pixels[3 * pixelIndex + 2]) == float(img_pixels[3 * reflectedPixelIndex + 2])))
+                                    {
+                                        // the red, green, and blue values of the reference image pixel and the reflected uncategorized image pixel are the same, same value at those corresponding pixelx
+                                        reflectedPixelMatches += 1;
                                     }
                                 }
                             }
                             
                             float ratio = float(pixelMatches) / float(totalPixels); // get the ratio of how many pixels matched up between the two images compared to the total number of pixels
 
-                            if (ratio > 0.99) // will need to adjust ratio
+                            float reflectedRatio = float(reflectedPixelMatches) / float(totalPixels); // get the ratio of how many pixels matched up between the reference image and the reflected uncategorized image compared to the total number of pixels
+
+                            if (ratio > 0.99 || reflectedRatio > 0.99) // will need to adjust ratio
                             {
                                 // this image is part of the reference image's category
                                 cout << "ratio: " << ratio << endl;
