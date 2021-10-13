@@ -4,6 +4,7 @@
 # Executable
 mandelbrot
 /frames/movieMaker
+/categorize/categorize
 
 # Images
 /frames/frame*.ppm
@@ -13,6 +14,9 @@ mandelbrot
 
 # Root information
 /frames/root_info.txt
+
+# Category information
+/categorize/categories/
 
 # VS Code development files
 .vscode/
