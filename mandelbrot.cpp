@@ -89,7 +89,7 @@ vector<VEC3F> topRoots; // hold top roots
 vector<VEC3F> randomRoots; // hold roots generated with random numbers
 
 bool colorRed = false; // default coloring roots red to be false
-int movesToCenterShape = 0; // default don't center shape
+int centerShape = 0; // default don't center shape
 
 ///////////////////////////////////////////////////////////////////////
 // Figure out which field element is being pointed at, set xField and
@@ -544,9 +544,9 @@ void writePPM(const string &filename, int &xRes, int &yRes, const float *values)
 }
 
 //////////////////////////////////////////////////////////////////////////////////
-// Returns true if there is a shape in the image; movesToCenter holds number of times to center the shape
+// Returns true if there is a shape in the image; if numCentered = 0, don't translate shape to center
 //////////////////////////////////////////////////////////////////////////////////
-bool renderImage(int &xRes, int &yRes, const string &filename, int frame_num, VEC3F centerOfMass, int movesToCenter)
+bool renderImage(int &xRes, int &yRes, const string &filename, int frame_num, VEC3F centerOfMass, int numCentered)
 {
   // allocate the final image
   const int totalCells = xRes * yRes;
@@ -567,9 +567,9 @@ bool renderImage(int &xRes, int &yRes, const string &filename, int frame_num, VE
 
   // get the pixel values of the roots, changing from x[-2 x 2], y[-2 x 2] to [xRes x yRes]
   float root1x_pixel = (topRoots[0][0] + xHalf - origin[0]) * (1.0 / dx);
-  float root1y_pixel = (topRoots[0][1] + xHalf - origin[1]) * (1.0 / dx);
+  float root1y_pixel = (topRoots[0][1] + yHalf - origin[1]) * (1.0 / dy);
   float root2x_pixel = (topRoots[1][0] + xHalf - origin[0]) * (1.0 / dx);
-  float root2y_pixel = (topRoots[1][1] + xHalf - origin[1]) * (1.0 / dx);
+  float root2y_pixel = (topRoots[1][1] + yHalf - origin[1]) * (1.0 / dy);
 
   // cout << "root1x_pixel: " << root1x_pixel << endl;
   // cout << "root1y_pixel: " << root1y_pixel << endl;
@@ -638,15 +638,14 @@ bool renderImage(int &xRes, int &yRes, const string &filename, int frame_num, VE
       {
         // cout << "white" << endl;
         field(x, y) = 1.0; // did not escape, color white
-
-        if (movesToCenter > 0)
+        if (numCentered != 0)
         {
+          // store info to calculate center of mass
           numWhitePixels += 1; // increment total number of white pixels
           xPosSum += center[0]; // increment sum of x positions of white pixels
           yPosSum += center[1]; // increment sum of y positions of white pixels
         }
         
-
         // set, in final image
         ppmOut[3 * pixelIndex] = 255.0f;
         ppmOut[3 * pixelIndex + 1] = 255.0f;
@@ -680,12 +679,23 @@ bool renderImage(int &xRes, int &yRes, const string &filename, int frame_num, VE
   if (shape)
   { 
     // fractal shape exists
-    if (movesToCenter > 0)
+    if (numCentered != 0 && numCentered < 11) // check if more than 10 recursive calls or if not even centering the shape to start with
     {
-      VEC3F centerOfMass = VEC3F(xPosSum / float(numWhitePixels), yPosSum / float(numWhitePixels), 0.0);
-      cout << "centerOfMass: " << centerOfMass << endl;
-      delete[] ppmOut;
-      return renderImage(xRes, yRes, filename, frame_num, centerOfMass, movesToCenter - 1); // recompute julia with shape's center of mass as new origin
+      VEC3F newCenterOfMass = VEC3F((xPosSum / float(numWhitePixels)), yPosSum / float(numWhitePixels), 0.0); // calculate new center of mass
+      
+      if ((abs(centerOfMass[0] - newCenterOfMass[0])) > 0.001 || abs(centerOfMass[1] - newCenterOfMass[1]) > 0.001) // check how much center of mass is changing by
+      {
+        // center of mass is still changing, so repeat rigid translation to center shape
+        delete[] ppmOut;
+        return renderImage(xRes, yRes, filename, frame_num, newCenterOfMass, numCentered + 1); // recompute julia with shape's center of mass as new origin
+      }
+      else
+      {
+        // center of mass is not changing, so shape is already centered
+        writePPM(filename, xRes, yRes, ppmOut); // output fractal shape
+        delete[] ppmOut;
+        return true;
+      }
     }
     else
     {
@@ -775,11 +785,11 @@ int main(int argc, char** argv)
 
       if (strcmp(argv[5], "-center") == 0)
       {
-        movesToCenterShape = 2; // center the shape
+        centerShape = 1; // center the shape
       }
       else
       {
-        movesToCenterShape = 0; // don't center the shape
+        centerShape = 0; // don't center the shape
       }
 
       
@@ -859,7 +869,7 @@ int main(int argc, char** argv)
           topRoots.push_back(VEC3F(randomRoots[i * 2 + 1][0], randomRoots[i * 2 + 1][1], 0.0)); // second root is in a random position
         }
 
-        bool shape = renderImage(xRes, yRes, buffer, image_num, VEC3F(0.0, 0.0, 0.0), movesToCenterShape); // compute shape, if any
+        bool shape = renderImage(xRes, yRes, buffer, image_num, VEC3F(0.0, 0.0, 0.0), centerShape); // compute shape, if any
         rootCombinations += 1; // increment total # of root combinations tried
 
         if (shape)
@@ -905,11 +915,11 @@ int main(int argc, char** argv)
 
       if (strcmp(argv[5], "-center") == 0)
       {
-        movesToCenterShape = 2; // center the shape
+        centerShape = 1; // center the shape
       }
       else
       {
-        movesToCenterShape = 0; // don't center the shape
+        centerShape = 0; // don't center the shape
       }
     }
     else // error
@@ -956,7 +966,7 @@ int main(int argc, char** argv)
           topRoots.push_back(VEC3F(0.0, 0.0, 0.0)); // pin first root to (0.0, 0.0)
           topRoots.push_back(VEC3F(root1_x, root1_y, 0.0));
 
-          bool shape = renderImage(xRes, yRes, buffer, image_num, VEC3F(0.0, 0.0, 0.0), movesToCenterShape); // compute shape, if any
+          bool shape = renderImage(xRes, yRes, buffer, image_num, VEC3F(0.0, 0.0, 0.0), centerShape); // compute shape, if any
           rootCombinations += 1; // increment total # of root combinations tried
         
           if (shape)
@@ -1004,11 +1014,11 @@ int main(int argc, char** argv)
 
       if (strcmp(argv[5], "-center") == 0)
       {
-        movesToCenterShape = 2; // center the shape
+        centerShape = 1; // center the shape
       }
       else
       {
-        movesToCenterShape = 0; // don't center the shape
+        centerShape = 0; // don't center the shape
       }
     }
     else // error
@@ -1069,7 +1079,7 @@ int main(int argc, char** argv)
               topRoots.push_back(VEC3F(root0_x, root0_y, 0.0));
               topRoots.push_back(VEC3F(root1_x, root1_y, 0.0));
 
-              bool shape = renderImage(xRes, yRes, buffer, image_num, VEC3F(0.0, 0.0, 0.0), movesToCenterShape); // compute shape, if any
+              bool shape = renderImage(xRes, yRes, buffer, image_num, VEC3F(0.0, 0.0, 0.0), centerShape); // compute shape, if any
               rootCombinations += 1; // increment total # of root combinations tried
               if (shape)
               { // only save root information if shape exists
