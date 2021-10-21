@@ -110,6 +110,16 @@ int main(int argc, char** argv)
         allImages[i] = false; // initialize all images in map to uncategorized (set to false)
     }
 
+    char shapeless_folder_buffer[256]; // hold folder name for the shapeless shape category (holding images with sprinkles of white pixels)
+    sprintf(shapeless_folder_buffer, "categories/shape.%03i", 0); // consider as shape0
+    if (mkdir(shapeless_folder_buffer, S_IRUSR | S_IWUSR | S_IXUSR) != 0)
+    {
+        // create a folder for this new shape category; returns 0 if successful, -1 otherwise
+        // error if != 0
+        cout << "Error creating " << shapeless_folder_buffer << endl;
+        return 0;
+    }
+
     for (int i = 0; i < totalFrames; i++)
     {
         if (allImages[i] == false) // go to the next uncategorized image and set that as the reference image for a new shape category
@@ -127,6 +137,33 @@ int main(int argc, char** argv)
                 // error
                 cout << "Failed to read " << reference_buffer << endl;
                 return 1;
+            }
+
+            int numWhitePixels = 0; // number of white pixels in the image
+            int totalPixels = width * height; // total number of pixels in the image
+            for (int k = 0; k < width; k++) // iterate through image array to count number of white pixels
+            {
+                for (int l = 0; l < height; l++)
+                {
+                    int pixelIndex = k + (height - l) * width; // calculate pixel index in image
+                    if ((float(reference_pixels[3 * pixelIndex]) == 255.0) && (float(reference_pixels[3 * pixelIndex + 1]) == 255.0) && (float(reference_pixels[3 * pixelIndex + 2]) == 255.0)) 
+                    {
+                        // white pixel in image
+                        numWhitePixels += 1;
+                    }
+                }
+            }
+            float whiteRatio = float(numWhitePixels) / float(totalPixels); // get ratio of white pixels to all pixels in the image
+            if (whiteRatio < 0.001)
+            {
+                // consider the image as a sprinkle of white pixels with no real shape
+                // add it to shape0 category (the shapeless category)
+                // build copy of reference image frame's filename
+                char reference_copy[256]; // the filename for the copy of the reference image
+                sprintf(reference_copy, "categories/shape.%03i/frame.%06i.ppm", 0, i);
+                writePPM(reference_copy, width, height, reference_pixels); // make a copy of the reference image and place it in the folder for the new shape category
+                allImages[i] = true; // set this image as categorized
+                continue; // done categorizing this image
             }
 
             numShapeCategories += 1; // one more shape category created
@@ -156,7 +193,6 @@ int main(int argc, char** argv)
                         int width, height;
                         unsigned char* img_pixels = NULL; // the pixel info for the uncategorized image
                         bool readSuccess = readPPM(img_buffer, img_pixels, width, height); // attempt to read the uncategorized image to compare it against the reference image
-                        int totalPixels = width * height; // total number of pixels in the image, for categorization based on number of same pixel color matches (both black and white)
                         int refWhitePixels = 0; // total number of white pixels in the reference image
                         int imgWhitePixels = 0; // total number of white pixels in the uncategorized image
 
