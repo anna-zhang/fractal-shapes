@@ -171,10 +171,16 @@ int main(int argc, char** argv)
             sprintf(folder_name_buffer, "categories/shape.%03i", numShapeCategories);
             int createFolderSuccess = mkdir(folder_name_buffer, S_IRUSR | S_IWUSR | S_IXUSR); // create a folder for this new shape category; returns 0 if successful, -1 otherwise
 
+            imageCategories << folder_name_buffer << endl; // save the shape category folder in the text file to mark a new shape category
+
             // build copy of reference image frame's filename
             char reference_copy[256]; // the filename for the copy of the reference image
             sprintf(reference_copy, "categories/shape.%03i/frame.%06i.ppm", numShapeCategories, i);
             writePPM(reference_copy, width, height, reference_pixels); // make a copy of the reference image and place it in the folder for the new shape category
+
+            imageCategories << "Reference image: " << reference_copy << endl; // save the shape category reference image filename in the text file
+
+            int numShapesInCategory = 1; // hold the number of shapes in this category, initialize to 1 since the category's reference image counts as an image in the category
 
             allImages[i] = true; // remember that this image has been categorized
 
@@ -267,7 +273,10 @@ int main(int argc, char** argv)
                                 // cout << "ratio: " << ratio << endl;
                                 // cout << "reflectedRatio: " << reflectedRatio << endl;
                                 allImages[j] = true; // remember that this image has been categorized
-                                imageCategories << folder_name_buffer << ": " << i << " and " << j << " with ratio: " << ratio << ", reflectedRatio: " << reflectedRatio << ", reference image had possibleWhiteMatches: " << possibleWhiteMatches << endl; // save the category pair in a text file for now
+                                numShapesInCategory += 1; // increment the number of shapes in this category
+                                
+                                imageCategories << img_buffer << endl; // save the categorized image
+                                // imageCategories << folder_name_buffer << ": " << i << " and " << j << " with ratio: " << ratio << ", reflectedRatio: " << reflectedRatio << ", reference image had possibleWhiteMatches: " << possibleWhiteMatches << endl; // save the category pair in a text file for now
                                 
                                 // build copy of uncategorized image frame's filename
                                 char uncategorized_copy[256]; // filename for the copy of the uncategorized image that is now categorized in the same category as the reference image
@@ -280,6 +289,9 @@ int main(int argc, char** argv)
                     }
                 }
             }
+
+            imageCategories << "Number of shapes in category " << numShapeCategories << ": " << numShapesInCategory << endl; // remember number of shapes in this category
+            imageCategories << endl; // spacer
 
             delete[] reference_pixels; // clean up
         }
