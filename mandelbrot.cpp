@@ -546,8 +546,14 @@ void writePPM(const string &filename, int &xRes, int &yRes, const float *values)
 //////////////////////////////////////////////////////////////////////////////////
 // Returns true if there is a shape in the image; if numCentered = 0, don't translate shape to center
 //////////////////////////////////////////////////////////////////////////////////
-bool renderImage(int &xRes, int &yRes, const string &filename, int frame_num, VEC3F centerOfMass, int numCentered)
+bool renderImage(int &xRes, int &yRes, const string &filename, int frame_num, VEC3F centerOfMass, int numCentered, ofstream& comFile)
 {
+  if(!comFile.is_open())
+  {
+    // erro opening center of mass info text file
+    cout << "Couldn't open file: " << comFile << endl;
+  }
+
   // allocate the final image
   const int totalCells = xRes * yRes;
   float *ppmOut = new float[3 * totalCells];
@@ -678,6 +684,7 @@ bool renderImage(int &xRes, int &yRes, const string &filename, int frame_num, VE
 
   if (shape)
   { 
+    comFile << filename << " COM for iteration " << numCentered << ": " << centerOfMass << endl;
     // fractal shape exists
     if (numCentered != 0 && numCentered < 11) // check if more than 10 recursive calls or if not even centering the shape to start with
     {
@@ -687,11 +694,13 @@ bool renderImage(int &xRes, int &yRes, const string &filename, int frame_num, VE
       {
         // center of mass is still changing, so repeat rigid translation to center shape
         delete[] ppmOut;
-        return renderImage(xRes, yRes, filename, frame_num, newCenterOfMass, numCentered + 1); // recompute julia with shape's center of mass as new origin
+        return renderImage(xRes, yRes, filename, frame_num, newCenterOfMass, numCentered + 1, comFile); // recompute julia with shape's center of mass as new origin
       }
       else
       {
         // center of mass is not changing, so shape is already centered
+        comFile << filename << " centered." << endl;
+        comFile << endl; // spacer in COM text file to indicate end of this image's centering
         writePPM(filename, xRes, yRes, ppmOut); // output fractal shape
         delete[] ppmOut;
         return true;
@@ -699,6 +708,11 @@ bool renderImage(int &xRes, int &yRes, const string &filename, int frame_num, VE
     }
     else
     {
+      if (numCentered == 11)
+      {
+        comFile << filename << " could not be centered." << endl;
+        comFile << endl; // spacer in COM text file to indicate end of this image's centering
+      }
       writePPM(filename, xRes, yRes, ppmOut); // output fractal shape
       delete[] ppmOut;
       return true;
@@ -763,6 +777,9 @@ int main(int argc, char** argv)
   {
     // create and open a text file to store root information alongside output image file names
     ofstream rootInfo("random/root_info.txt");
+
+    // create and open a text file to store COM information alongside output image file names
+    ofstream comInfo("shapes/COM_info.txt");
 
     int numCombinations = 8; // default # of random combinations if not specified by user
 
@@ -869,7 +886,7 @@ int main(int argc, char** argv)
           topRoots.push_back(VEC3F(randomRoots[i * 2 + 1][0], randomRoots[i * 2 + 1][1], 0.0)); // second root is in a random position
         }
 
-        bool shape = renderImage(xRes, yRes, buffer, image_num, VEC3F(0.0, 0.0, 0.0), centerShape); // compute shape, if any
+        bool shape = renderImage(xRes, yRes, buffer, image_num, VEC3F(0.0, 0.0, 0.0), centerShape, comInfo); // compute shape, if any
         rootCombinations += 1; // increment total # of root combinations tried
 
         if (shape)
@@ -880,6 +897,7 @@ int main(int argc, char** argv)
       }
       rootInfo << "rootCombinations tried: " << rootCombinations << endl;
       rootInfo.close(); // close file after done writing
+      comInfo.close(); // close COM text file after done writing
     }
     else 
     {
@@ -891,6 +909,9 @@ int main(int argc, char** argv)
   {
     // create and open a text file to store root information alongside output image file names
     ofstream rootInfo("pinned/root_info.txt");
+
+    // create and open a text file to store COM information alongside output image file names
+    ofstream comInfo("shapes/COM_info.txt");
 
     int gridSize_x = 8; // default grid size if not specified by user
     int gridSize_y = 8; // default grid size if not specified by user
@@ -966,7 +987,7 @@ int main(int argc, char** argv)
           topRoots.push_back(VEC3F(0.0, 0.0, 0.0)); // pin first root to (0.0, 0.0)
           topRoots.push_back(VEC3F(root1_x, root1_y, 0.0));
 
-          bool shape = renderImage(xRes, yRes, buffer, image_num, VEC3F(0.0, 0.0, 0.0), centerShape); // compute shape, if any
+          bool shape = renderImage(xRes, yRes, buffer, image_num, VEC3F(0.0, 0.0, 0.0), centerShape, comInfo); // compute shape, if any
           rootCombinations += 1; // increment total # of root combinations tried
         
           if (shape)
@@ -978,6 +999,7 @@ int main(int argc, char** argv)
       }
       rootInfo << "rootCombinations tried: " << rootCombinations << endl;
       rootInfo.close(); // close file after done writing
+      comInfo.close(); // close COM text file after done writing
     }
     else 
     {
@@ -990,6 +1012,9 @@ int main(int argc, char** argv)
   {
     // create and open a text file to store root information alongside output image file names
     ofstream rootInfo("shapes/root_info.txt");
+
+    // create and open a text file to store COM information alongside output image file names
+    ofstream comInfo("shapes/COM_info.txt");
 
     int gridSize_x = 8; // default grid size if not specified by user
     int gridSize_y = 8; // default grid size if not specified by user
@@ -1079,7 +1104,7 @@ int main(int argc, char** argv)
               topRoots.push_back(VEC3F(root0_x, root0_y, 0.0));
               topRoots.push_back(VEC3F(root1_x, root1_y, 0.0));
 
-              bool shape = renderImage(xRes, yRes, buffer, image_num, VEC3F(0.0, 0.0, 0.0), centerShape); // compute shape, if any
+              bool shape = renderImage(xRes, yRes, buffer, image_num, VEC3F(0.0, 0.0, 0.0), centerShape, comInfo); // compute shape, if any
               rootCombinations += 1; // increment total # of root combinations tried
               if (shape)
               { // only save root information if shape exists
@@ -1092,6 +1117,7 @@ int main(int argc, char** argv)
       }
       rootInfo << "rootCombinations tried: " << rootCombinations << endl;
       rootInfo.close(); // close file after done writing
+      comInfo.close(); // close COM text file after done writing
     }
     else 
     {
