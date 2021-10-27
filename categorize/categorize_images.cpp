@@ -10,6 +10,9 @@
 
 using namespace std;
 
+// forward declare the categorize all images function here so that we can put it at the bottom of the file
+bool categorizeAll(int totalFrames, ofstream& imageCategories);
+
 //////////////////////////////////////////////////////////////////////////////////
 // Read in a raw PPM file of the "P6" style.
 //
@@ -85,38 +88,84 @@ void writePPM(const string &filename, int &xRes, int &yRes, unsigned char *value
 }
 
 ///////////////////////////////////////////////////////////////////////
+// Program usage: ./categorize (-all or -specific) [specific flag parameters]
 ///////////////////////////////////////////////////////////////////////
 int main(int argc, char** argv)
 {
-    // create and open a text file to store categories of images
-    ofstream imageCategories("categories/image_groups.txt");
-
-    bool referenceReadSuccess = false; // store whether the reference image has been read successfully
-
-    if (argc != 2)
+    if (argc > 2)
     {
-        // error
-        cout << "Program usage: ./categorize (# of images total)" << endl;
-        return 0;
-    }
+        if (strcmp(argv[1], "-all") == 0) 
+        {
+            // Categorize all images
+            // Program usage: ./categorize -all (# of images)
+            if (argc != 3)
+            {
+                // error
+                cout << "Program usage: ./categorize -all (# of images)" << endl;
+                return 1;
+            }
 
-    if (imageCategories.is_open()) // make sure the text file can be opened
-    {
-      imageCategories << "Categorization information for: "; // save where the root information came from in the text file
-      for (int i = 0; i < argc; i++)
-      {
-        imageCategories << argv[i] << " ";
-      }
-    imageCategories << endl;
+
+            // create and open a text file to store categories of images
+            ofstream imageCategories("categories/image_groups.txt");
+            if (imageCategories.is_open()) // make sure the text file can be opened
+            {
+                imageCategories << "Categorization information for: "; // save where the categorization information came from in the text file (the command)
+                for (int i = 0; i < argc; i++)
+                {
+                    imageCategories << argv[i] << " ";
+                }
+                imageCategories << endl;
+
+                // categorize all images
+                bool categorizeSuccess = categorizeAll(atoi(argv[2]), imageCategories); 
+                if (!categorizeSuccess)
+                {
+                    // error
+                    cout << "Failed to categorize all images." << endl;
+                    return 1;
+                }
+            }
+            else
+            {
+                // error
+                cout << "Text file to hold image categories cannot be opened" << endl;
+                return 1;
+            }
+            
+        }
+        else if (strcmp(argv[1], "-specific") == 0) 
+        {
+            // Calculate match between two specific images
+            // Program usage: ./categorize -specific (first image #) (second image #) 
+            if (argc != 4)
+            {
+                // error
+                cout << "Program usage: ./categorize -specific (first image #) (second image #)" << endl;
+                return 1;
+            }
+
+            int firstImgNum = atoi(argv[2]); // get the first image's frame #
+            int secondImgNum = atoi(argv[3]); // get the second image's frame #
+            cout << "Calculating match between " << firstImgNum << " and " << secondImgNum << endl;
+        }
     }
     else
     {
         // error
-        cout << "Text file to hold image categories cannot be opened" << endl;
-        return 0;
+        cout << "Program usage: ./categorize (-all or -specific) [specific flag parameters]" << endl;
+        return 1;
     }
+    return 0;    
+}
 
-    int totalFrames = atoi(argv[1]); // number of total frames to go through
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// Returns true if categorization is successful, false if encountered error; 
+// totalFrames is the number of total frames to go through; imageCategories is the text file to write image category info to
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+bool categorizeAll(int totalFrames, ofstream& imageCategories)
+{
+    bool referenceReadSuccess = false; // store whether the reference image has been read successfully
     int numShapeCategories = 0; // number of shape categories
 
     // create a map that stores whether an image has been categorized indexed by image name
@@ -133,7 +182,7 @@ int main(int argc, char** argv)
         // create a folder for this new shape category; returns 0 if successful, -1 otherwise
         // error if != 0
         cout << "Error creating " << shapeless_folder_buffer << endl;
-        return 0;
+        return false;
     }
 
     float sameCutoff = 0.80; // if ratio between images is greater than sameCutoff, then they are categorized as the same shape; otherwise, they are categorized as different shapes
@@ -155,7 +204,7 @@ int main(int argc, char** argv)
             {
                 // error
                 cout << "Failed to read " << reference_buffer << endl;
-                return 1;
+                return false;
             }
 
             int numWhitePixels = 0; // number of white pixels in the image
@@ -210,7 +259,7 @@ int main(int argc, char** argv)
                 {
                     if (allImages[j] == false) // only go through remaining uncategorized images
                     {
-                        // build image to compare it to's filename
+                        // build uncategorized image to compare it to's filename
                         char img_buffer[256]; // the filename for the uncategorized image
                         sprintf(img_buffer, "../shapes/frame.%06i.ppm", j);
 
@@ -284,13 +333,13 @@ int main(int argc, char** argv)
 
                                     if ((float(reference_pixels[3 * pixelIndex]) == float(img_pixels[3 * reflectedPixelIndex])) && (float(reference_pixels[3 * pixelIndex + 1]) == float(img_pixels[3 * reflectedPixelIndex + 1])) && (float(reference_pixels[3 * pixelIndex + 2]) == float(img_pixels[3 * reflectedPixelIndex + 2])))
                                     {
-                                        // the red, green, and blue values of the reference image pixel and the reflected uncategorized image pixel are the same, same value at those corresponding pixel
+                                        // the red, green, and blue values of the reference image pixel and the reflected uncategorized image pixel are the same, same value at those corresponding pixels
                                         if ((reference_pixels[3 * pixelIndex] == 255.0) && (reference_pixels[3 * pixelIndex + 1] == 255.0) && (reference_pixels[3 * pixelIndex + 2] == 255.0))
                                         {
                                             reflectedPixelWhiteMatches += 1; // white pixel, for categorization based on number of white pixel matches
                                         }
 
-                                        // the red, green, and blue values of the reference image pixel and the reflected uncategorized image pixel are the same, same value at those corresponding pixel
+                                        // the red, green, and blue values of the reference image pixel and the reflected uncategorized image pixel are the same, same value at those corresponding pixels
                                         if ((reference_pixels[3 * pixelIndex] == 0.0) && (reference_pixels[3 * pixelIndex + 1] == 0.0) && (reference_pixels[3 * pixelIndex + 2] == 0.0))
                                         {
                                             reflectedPixelBlackMatches += 1; // black pixel, for categorization based on number of black pixel matches
@@ -364,5 +413,5 @@ int main(int argc, char** argv)
     }
 
     imageCategories.close(); // close file after done writing
-    return 1;
+    return true;
 }
