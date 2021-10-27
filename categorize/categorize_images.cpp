@@ -100,6 +100,22 @@ int main(int argc, char** argv)
         return 0;
     }
 
+    if (imageCategories.is_open()) // make sure the text file can be opened
+    {
+      imageCategories << "Categorization information for: "; // save where the root information came from in the text file
+      for (int i = 0; i < argc; i++)
+      {
+        imageCategories << argv[i] << " ";
+      }
+    imageCategories << endl;
+    }
+    else
+    {
+        // error
+        cout << "Text file to hold image categories cannot be opened" << endl;
+        return 0;
+    }
+
     int totalFrames = atoi(argv[1]); // number of total frames to go through
     int numShapeCategories = 0; // number of shape categories
 
@@ -119,6 +135,9 @@ int main(int argc, char** argv)
         cout << "Error creating " << shapeless_folder_buffer << endl;
         return 0;
     }
+
+    float sameCutoff = 0.80; // if ratio between images is greater than sameCutoff, then they are categorized as the same shape; otherwise, they are categorized as different shapes
+    imageCategories << "Match cutoff score: " << sameCutoff << endl; // save the cutoff score for matches in the categorization text file
 
     for (int i = 0; i < totalFrames; i++)
     {
@@ -201,10 +220,16 @@ int main(int argc, char** argv)
                         bool readSuccess = readPPM(img_buffer, img_pixels, width, height); // attempt to read the uncategorized image to compare it against the reference image
                         int refWhitePixels = 0; // total number of white pixels in the reference image
                         int imgWhitePixels = 0; // total number of white pixels in the uncategorized image
+                        int refBlackPixels = 0; // total number of black pixels in the reference image
+                        int imgBlackPixels = 0; // total number of black pixels in the uncategorized image
 
-                        int pixelMatches = 0; // hold number of pixel matches between the reference image and the image to categorize
-                        int reflectedPixelMatches = 0; // hold number of pixel matches between the reference image and the image to categorize reflected across the y axis
+                        int pixelWhiteMatches = 0; // hold number of white pixel matches between the reference image and the image to categorize
+                        int reflectedPixelWhiteMatches = 0; // hold number of white pixel matches between the reference image and the image to categorize reflected across the y axis
                         int possibleWhiteMatches = 0; // hold number of possible white pixel matches, either refWhitePixels or imgWhitePixels depending on which is larger; for categorization based on number of white pixel matches
+
+                        int pixelBlackMatches = 0; // hold number of black pixel matches between the reference image and the image to categorize
+                        int reflectedPixelBlackMatches = 0; // hold number of black pixel matches between the reference image and the image to categorize reflected across the y axis
+                        int possibleBlackMatches = 0; // hold number of possible black pixel matches, either refBlackPixels or imgBlackPixels depending on which is larger; for categorization based on number of black pixel matches
                         
                         if (readSuccess) // uncategorized image is successfully read
                         {
@@ -229,44 +254,74 @@ int main(int argc, char** argv)
                                         imgWhitePixels += 1;
                                     }
 
+                                    if (float(reference_pixels[3 * pixelIndex]) == 0.0)
+                                    {
+                                        // black pixel in reference image
+                                        refBlackPixels += 1;
+                                    }
+
+                                    if (float(img_pixels[3 * pixelIndex]) == 0.0)
+                                    {
+                                        // black pixel in uncategorized image
+                                        imgBlackPixels += 1;
+                                    }
+
                                     if ((float(reference_pixels[3 * pixelIndex]) == float(img_pixels[3 * pixelIndex])) && (float(reference_pixels[3 * pixelIndex + 1]) == float(img_pixels[3 * pixelIndex + 1])) && (float(reference_pixels[3 * pixelIndex + 2]) == float(img_pixels[3 * pixelIndex + 2])))
                                     {
                                         // the red, green, and blue values of the pixel are the same, so the two images have the same value at that pixel
                                         if ((reference_pixels[3 * pixelIndex] == 255.0) && (reference_pixels[3 * pixelIndex + 1] == 255.0) && (reference_pixels[3 * pixelIndex + 2] == 255.0))
                                         {
-                                            pixelMatches += 1; // white pixel, for categorization based on number of white pixel matches
+                                            pixelWhiteMatches += 1; // white pixel, for categorization based on number of white pixel matches
+                                        }
+
+                                        // the red, green, and blue values of the pixel are the same, so the two images have the same value at that pixel
+                                        if ((reference_pixels[3 * pixelIndex] == 0.0) && (reference_pixels[3 * pixelIndex + 1] == 0.0) && (reference_pixels[3 * pixelIndex + 2] == 0.0))
+                                        {
+                                            pixelBlackMatches += 1; // black pixel, for categorization based on number of black pixel matches
                                         }
                                         // pixelMatches += 1; // same color pixel, for categorization based on number of same pixel color matches (both black and white)
                                     }
 
                                     if ((float(reference_pixels[3 * pixelIndex]) == float(img_pixels[3 * reflectedPixelIndex])) && (float(reference_pixels[3 * pixelIndex + 1]) == float(img_pixels[3 * reflectedPixelIndex + 1])) && (float(reference_pixels[3 * pixelIndex + 2]) == float(img_pixels[3 * reflectedPixelIndex + 2])))
                                     {
-                                        // the red, green, and blue values of the reference image pixel and the reflected uncategorized image pixel are the same, same value at those corresponding pixelx
+                                        // the red, green, and blue values of the reference image pixel and the reflected uncategorized image pixel are the same, same value at those corresponding pixel
                                         if ((reference_pixels[3 * pixelIndex] == 255.0) && (reference_pixels[3 * pixelIndex + 1] == 255.0) && (reference_pixels[3 * pixelIndex + 2] == 255.0))
                                         {
-                                            reflectedPixelMatches += 1; // white pixel, for categorization based on number of white pixel matches
+                                            reflectedPixelWhiteMatches += 1; // white pixel, for categorization based on number of white pixel matches
+                                        }
+
+                                        // the red, green, and blue values of the reference image pixel and the reflected uncategorized image pixel are the same, same value at those corresponding pixel
+                                        if ((reference_pixels[3 * pixelIndex] == 0.0) && (reference_pixels[3 * pixelIndex + 1] == 0.0) && (reference_pixels[3 * pixelIndex + 2] == 0.0))
+                                        {
+                                            reflectedPixelBlackMatches += 1; // black pixel, for categorization based on number of black pixel matches
                                         }
                                         // reflectedPixelMatches += 1; // same color pixel, for categorization based on number of same pixel color matches (both black and white)
                                     }
                                 }
                             }
                             
-                            // determine categorization based on number of same pixel color matches (both black and white) / total possible pixel matches (total number of pixels)
-                            // float ratio = float(pixelMatches) / float(totalPixels); // get the ratio of how many pixels matched up between the two images compared to the total number of pixels
-                            // float reflectedRatio = float(reflectedPixelMatches) / float(totalPixels); // get the ratio of how many pixels matched up between the reference image and the reflected uncategorized image compared to the total number of pixels
-
-                            // determine categorization based on number of white pixel matches / total possible white pixel matches
+                            // determine categorization based on 0.5 * (number of white pixel matches / total possible white pixel matches) + 0.5 * (number of black pixel matches / total possible black pixel matches)
                             possibleWhiteMatches = refWhitePixels;
                             if (imgWhitePixels > refWhitePixels)
                             {
                                 possibleWhiteMatches = imgWhitePixels; // get the largest number of white pixels, either the amount from the reference image or the uncategorized image
                             }
 
-                            float ratio = float(pixelMatches) / float(possibleWhiteMatches); // get the ratio of how many pixels matched up between the two images compared to the total number of pixels; only white pixel matches
-                            float reflectedRatio = float(reflectedPixelMatches) / float(possibleWhiteMatches); // get the ratio of how many pixels matched up between the reference image and the reflected uncategorized image compared to the total number of pixels; only white pixel matches
+                            possibleBlackMatches = refBlackPixels;
+                            if (imgBlackPixels > refBlackPixels)
+                            {
+                                possibleBlackMatches = imgBlackPixels; // get the largest number of black pixels, either the amount from the reference image or the uncategorized image
+                            }
 
+                            float whiteRatio = float(pixelWhiteMatches) / float(possibleWhiteMatches); // get the ratio of how many pixels matched up between the two images compared to the total number of pixels; only white pixel matches
+                            float blackRatio = float(pixelBlackMatches) / float(possibleBlackMatches); // get the ratio of how many pixels matched up between the two images compared to the total number of pixels; only black pixel matches
+                            float ratio = (0.5 * whiteRatio) + (0.5 * blackRatio); // calculate overall ratio of matches by evenly weighting the ratio of white pixel matches and the ratio of black pixel matches
 
-                            float sameCutoff = 0.99; // if ratio between images is greater than sameCutoff, then they are categorized as the same shape; otherwise, they are categorized as different shapes
+                            float whiteReflectedRatio = float(reflectedPixelWhiteMatches) / float(possibleWhiteMatches); // get the ratio of how many pixels matched up between the reference image and the reflected uncategorized image compared to the total number of pixels; only white pixel matches
+                            float blackReflectedRatio = float(reflectedPixelBlackMatches) / float(possibleBlackMatches); // get the ratio of how many pixels matched up between the reference image and the reflected uncategorized image compared to the total number of pixels; only black pixel matches
+                            float reflectedRatio = (0.5 * whiteReflectedRatio) + (0.5 * blackReflectedRatio); // calculate overall ratio of matches by evenly weighting the ratio of reflected white pixel matches and the ratio of reflected black pixel matches
+                            // float reflectedRatio = whiteReflectedRatio; // calculate overall ratio of matches by evenly weighting the ratio of reflected white pixel matches and the ratio of reflected black pixel matches
+
                             if (ratio > sameCutoff || reflectedRatio > sameCutoff) // will need to adjust ratio
                             {
                                 // this image is part of the reference image's category
@@ -275,7 +330,18 @@ int main(int argc, char** argv)
                                 allImages[j] = true; // remember that this image has been categorized
                                 numShapesInCategory += 1; // increment the number of shapes in this category
                                 
-                                imageCategories << img_buffer << endl; // save the categorized image
+                                imageCategories << img_buffer << " "; // save the categorized image
+                                if (ratio > sameCutoff)
+                                {
+                                    // reference image and uncategorized image match
+                                    imageCategories << "with ratio: " << ratio << ", whiteRatio: " << whiteRatio << ", blackRatio: " << blackRatio << endl; // save the scores for the match
+                                    imageCategories << "with reflectedRatio: " << reflectedRatio << ", whiteReflectedRatio: " << whiteReflectedRatio << ", blackReflectedRatio: " << blackReflectedRatio << endl; // save the scores for the match
+                                }
+                                else if (reflectedRatio > sameCutoff)
+                                {
+                                    // reference image and reflected uncategorized image match
+                                    imageCategories << "with reflectedRatio: " << reflectedRatio << ", whiteReflectedRatio: " << whiteReflectedRatio << ", blackReflectedRatio: " << blackReflectedRatio << endl; // save the scores for the match
+                                }
                                 // imageCategories << folder_name_buffer << ": " << i << " and " << j << " with ratio: " << ratio << ", reflectedRatio: " << reflectedRatio << ", reference image had possibleWhiteMatches: " << possibleWhiteMatches << endl; // save the category pair in a text file for now
                                 
                                 // build copy of uncategorized image frame's filename
