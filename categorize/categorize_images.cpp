@@ -87,9 +87,9 @@ void writePPM(const string &filename, int &xRes, int &yRes, unsigned char *value
   delete[] pixels;
 }
 
-///////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////
 // Program usage: ./categorize (-all or -specific) [specific flag parameters]
-///////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////
 int main(int argc, char** argv)
 {
     if (argc > 2)
@@ -159,13 +159,300 @@ int main(int argc, char** argv)
     return 0;    
 }
 
+
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// Returns true if categorization is successful, false if encountered error; 
-// totalFrames is the number of total frames to go through; imageCategories is the text file to write image category info to
+// Returns true if the uncategorized image matches the reference image, false otherwise
+// refFrameNum is the number of the reference image file
+// uncategorizedFrameNum is the number of the uncategorized image file
+// cutoffScore is the cutoff score for same shape matches
+// imageCategories is the text file to write image category info to
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+bool sameShape(int refFrameNum, int uncategorizedFrameNum, int categoryNum, float cutoffScore, ofstream& imageCategories)
+{
+    // build reference image frame's filename
+    char reference_buffer[256];
+    sprintf(reference_buffer, "../shapes/frame.%06i.ppm", refFrameNum);
+
+    // try reading the reference image's frame
+    int refWidth, refHeight;
+    unsigned char* reference_pixels = NULL;
+    bool refReadSuccess = readPPM(reference_buffer, reference_pixels, refWidth, refHeight); // attempt to read the reference image 
+
+    // build uncategorized image to compare it to's filename
+    char img_buffer[256]; // the filename for the uncategorized image
+    sprintf(img_buffer, "../shapes/frame.%06i.ppm", uncategorizedFrameNum);
+
+    // try reading the next sequential frame as the image to categorize
+    int imgWidth, imgHeight;
+    unsigned char* img_pixels = NULL; // the pixel info for the uncategorized image
+    bool imgReadSuccess = readPPM(img_buffer, img_pixels, imgWidth, imgHeight); // attempt to read the uncategorized image to compare it against the reference image
+
+    int height = refHeight; // height of images to compare
+    int width = refWidth; // width of images to compare
+
+    // Make sure the reference image and the uncategorized image have the same dimensions
+    if ((refWidth != imgWidth) || (refHeight != imgHeight))
+    {
+        // Error
+        cout << "Error: reference image and uncategorized image have different dimensions." << endl;
+        return false;
+    }
+
+
+    int refWhitePixels = 0; // total number of white pixels in the reference image
+    int imgWhitePixels = 0; // total number of white pixels in the uncategorized image
+    int refBlackPixels = 0; // total number of black pixels in the reference image
+    int imgBlackPixels = 0; // total number of black pixels in the uncategorized image
+
+    int pixelWhiteMatches = 0; // hold number of white pixel matches between the reference image and the image to categorize
+    int reflectedPixelWhiteMatches = 0; // hold number of white pixel matches between the reference image and the image to categorize reflected across the y axis
+    int possibleWhiteMatches = 0; // hold number of possible white pixel matches, either refWhitePixels or imgWhitePixels depending on which is larger; for categorization based on number of white pixel matches
+
+    int pixelBlackMatches = 0; // hold number of black pixel matches between the reference image and the image to categorize
+    int reflectedPixelBlackMatches = 0; // hold number of black pixel matches between the reference image and the image to categorize reflected across the y axis
+    int possibleBlackMatches = 0; // hold number of possible black pixel matches, either refBlackPixels or imgBlackPixels depending on which is larger; for categorization based on number of black pixel matches
+    
+    if (refReadSuccess && imgReadSuccess) // successfully read reference image and uncategorized image
+    {
+        // iterate through every pixel in the image and see if the pixels in the reference image and the uncategorized image match up
+        for (int x = 0; x < width; x++)
+        {
+            for (int y = 0; y < height; y++)
+            {
+                int pixelIndex = x + (height - y) * width; // calculate pixel index for pixel values array that represents the final output image
+
+                int reflectedPixelIndex = (width - x) + (height - y) * width; // calculate pixel index for pixel value that represents the image reflected across the y axis
+
+                if (float(reference_pixels[3 * pixelIndex]) == 255.0)
+                {
+                    // white pixel in reference image
+                    refWhitePixels += 1;
+                }
+
+                if (float(img_pixels[3 * pixelIndex]) == 255.0)
+                {
+                    // white pixel in uncategorized image
+                    imgWhitePixels += 1;
+                }
+
+                if (float(reference_pixels[3 * pixelIndex]) == 0.0)
+                {
+                    // black pixel in reference image
+                    refBlackPixels += 1;
+                }
+
+                if (float(img_pixels[3 * pixelIndex]) == 0.0)
+                {
+                    // black pixel in uncategorized image
+                    imgBlackPixels += 1;
+                }
+
+                if ((float(reference_pixels[3 * pixelIndex]) == float(img_pixels[3 * pixelIndex])) && (float(reference_pixels[3 * pixelIndex + 1]) == float(img_pixels[3 * pixelIndex + 1])) && (float(reference_pixels[3 * pixelIndex + 2]) == float(img_pixels[3 * pixelIndex + 2])))
+                {
+                    // the red, green, and blue values of the pixel are the same, so the two images have the same value at that pixel
+                    if ((reference_pixels[3 * pixelIndex] == 255.0) && (reference_pixels[3 * pixelIndex + 1] == 255.0) && (reference_pixels[3 * pixelIndex + 2] == 255.0))
+                    {
+                        pixelWhiteMatches += 1; // white pixel, for categorization based on number of white pixel matches
+                    }
+
+                    // the red, green, and blue values of the pixel are the same, so the two images have the same value at that pixel
+                    if ((reference_pixels[3 * pixelIndex] == 0.0) && (reference_pixels[3 * pixelIndex + 1] == 0.0) && (reference_pixels[3 * pixelIndex + 2] == 0.0))
+                    {
+                        pixelBlackMatches += 1; // black pixel, for categorization based on number of black pixel matches
+                    }
+                }
+
+                if ((float(reference_pixels[3 * pixelIndex]) == float(img_pixels[3 * reflectedPixelIndex])) && (float(reference_pixels[3 * pixelIndex + 1]) == float(img_pixels[3 * reflectedPixelIndex + 1])) && (float(reference_pixels[3 * pixelIndex + 2]) == float(img_pixels[3 * reflectedPixelIndex + 2])))
+                {
+                    // the red, green, and blue values of the reference image pixel and the reflected uncategorized image pixel are the same, same value at those corresponding pixels
+                    if ((reference_pixels[3 * pixelIndex] == 255.0) && (reference_pixels[3 * pixelIndex + 1] == 255.0) && (reference_pixels[3 * pixelIndex + 2] == 255.0))
+                    {
+                        reflectedPixelWhiteMatches += 1; // white pixel, for categorization based on number of white pixel matches
+                    }
+
+                    // the red, green, and blue values of the reference image pixel and the reflected uncategorized image pixel are the same, same value at those corresponding pixels
+                    if ((reference_pixels[3 * pixelIndex] == 0.0) && (reference_pixels[3 * pixelIndex + 1] == 0.0) && (reference_pixels[3 * pixelIndex + 2] == 0.0))
+                    {
+                        reflectedPixelBlackMatches += 1; // black pixel, for categorization based on number of black pixel matches
+                    }
+                }
+            }
+        }
+        
+        // determine categorization based on 0.5 * (number of white pixel matches / total possible white pixel matches) + 0.5 * (number of black pixel matches / total possible black pixel matches)
+        possibleWhiteMatches = refWhitePixels;
+        if (imgWhitePixels > refWhitePixels)
+        {
+            possibleWhiteMatches = imgWhitePixels; // get the largest number of white pixels, either the amount from the reference image or the uncategorized image
+        }
+
+        possibleBlackMatches = refBlackPixels;
+        if (imgBlackPixels > refBlackPixels)
+        {
+            possibleBlackMatches = imgBlackPixels; // get the largest number of black pixels, either the amount from the reference image or the uncategorized image
+        }
+
+        float whiteRatio = float(pixelWhiteMatches) / float(possibleWhiteMatches); // get the ratio of how many pixels matched up between the two images compared to the total number of pixels; only white pixel matches
+        float blackRatio = float(pixelBlackMatches) / float(possibleBlackMatches); // get the ratio of how many pixels matched up between the two images compared to the total number of pixels; only black pixel matches
+        float ratio = (0.5 * whiteRatio) + (0.5 * blackRatio); // calculate overall ratio of matches by evenly weighting the ratio of white pixel matches and the ratio of black pixel matches
+
+        float whiteReflectedRatio = float(reflectedPixelWhiteMatches) / float(possibleWhiteMatches); // get the ratio of how many pixels matched up between the reference image and the reflected uncategorized image compared to the total number of pixels; only white pixel matches
+        float blackReflectedRatio = float(reflectedPixelBlackMatches) / float(possibleBlackMatches); // get the ratio of how many pixels matched up between the reference image and the reflected uncategorized image compared to the total number of pixels; only black pixel matches
+        float reflectedRatio = (0.5 * whiteReflectedRatio) + (0.5 * blackReflectedRatio); // calculate overall ratio of matches by evenly weighting the ratio of reflected white pixel matches and the ratio of reflected black pixel matches
+        // float reflectedRatio = whiteReflectedRatio; // calculate overall ratio of matches by evenly weighting the ratio of reflected white pixel matches and the ratio of reflected black pixel matches
+
+        if (ratio > cutoffScore || reflectedRatio > cutoffScore) // will need to adjust ratio
+        {
+            // this image is part of the reference image's category
+            // build copy of uncategorized image frame's filename
+            char uncategorized_copy[256]; // filename for the copy of the uncategorized image that is now categorized in the same category as the reference image
+            sprintf(uncategorized_copy, "categories/shape.%03i/frame.%06i.ppm", categoryNum, uncategorizedFrameNum);
+            writePPM(uncategorized_copy, width, height, img_pixels); // make a copy of the newly categorized image and place it in the shape category's folder
+
+            imageCategories << img_buffer << " "; // save the categorized image
+            if (ratio > cutoffScore)
+            {
+                // reference image and uncategorized image match
+                imageCategories << "with ratio: " << ratio << ", whiteRatio: " << whiteRatio << ", blackRatio: " << blackRatio << endl; // save the scores for the match
+                imageCategories << "with reflectedRatio: " << reflectedRatio << ", whiteReflectedRatio: " << whiteReflectedRatio << ", blackReflectedRatio: " << blackReflectedRatio << endl; // save the scores for the match
+            }
+            else if (reflectedRatio > cutoffScore)
+            {
+                // reference image and reflected uncategorized image match
+                imageCategories << "with reflectedRatio: " << reflectedRatio << ", whiteReflectedRatio: " << whiteReflectedRatio << ", blackReflectedRatio: " << blackReflectedRatio << endl; // save the scores for the match
+            }
+            delete[] reference_pixels; // clean up
+            delete[] img_pixels; // clean up
+            return true;
+        }
+
+        // images don't match
+        delete[] reference_pixels; // clean up
+        delete[] img_pixels; // clean up
+        return false;    
+    }
+    else
+    {
+        // error
+        cout << "Error reading images to compare" << endl;
+        delete[] reference_pixels; // clean up
+        delete[] img_pixels; // clean up
+        return false;
+    }
+}
+
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// Returns true if the shape in the image is considered a shape to filter out white sprinkles that aren't visually interesting
+// frameNum is the image number with the shape in consideration
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+bool consideredShape(int frameNum)
+{
+    // build reference image frame's filename
+    char reference_buffer[256];
+    sprintf(reference_buffer, "../shapes/frame.%06i.ppm", frameNum);
+
+    // try reading the reference image's frame
+    int width, height;
+    unsigned char* reference_pixels = NULL;
+    bool referenceReadSuccess = readPPM(reference_buffer, reference_pixels, width, height); // attempt to read the reference image 
+    if (!referenceReadSuccess)
+    {
+        // error
+        cout << "Failed to read " << reference_buffer << endl;
+        return false; // false for not considered a shape since it can't be read
+    }
+
+    int numWhitePixels = 0; // number of white pixels in the image
+    int totalPixels = width * height; // total number of pixels in the image
+    for (int k = 0; k < width; k++) // iterate through image array to count number of white pixels
+    {
+        for (int l = 0; l < height; l++)
+        {
+            int pixelIndex = k + (height - l) * width; // calculate pixel index in image
+            if ((float(reference_pixels[3 * pixelIndex]) == 255.0) && (float(reference_pixels[3 * pixelIndex + 1]) == 255.0) && (float(reference_pixels[3 * pixelIndex + 2]) == 255.0)) 
+            {
+                // white pixel in image
+                numWhitePixels += 1;
+            }
+        }
+    }
+    float whiteRatio = float(numWhitePixels) / float(totalPixels); // get ratio of white pixels to all pixels in the image
+    if (whiteRatio < 0.001)
+    {
+        // consider the image as a sprinkle of white pixels with no real shape
+        // add it to shape0 category (the shapeless category)
+        // build copy of reference image frame's filename
+        char reference_copy[256]; // the filename for the copy of the reference image
+        sprintf(reference_copy, "categories/shape.%03i/frame.%06i.ppm", 0, frameNum);
+        writePPM(reference_copy, width, height, reference_pixels); // make a copy of the reference image and place it in the folder for the new shape category
+        delete[] reference_pixels; // clean up
+        return false;
+    }
+    else
+    {
+        // the shape in the image is an interesting shape
+        delete[] reference_pixels; // clean up
+        return true;
+    }
+}
+
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// Returns true if new category creation is successful, false if encountered error
+// frameNum is the frame number of the image to use as the reference image
+// numShapeCategories is the number used for the new shape category, since index 0
+// imageCategories is the text file to write image category info to
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+bool createCategory(int frameNum, int numShapeCategories, ofstream& imageCategories)
+{
+    // build reference image frame's filename
+    char reference_buffer[256];
+    sprintf(reference_buffer, "../shapes/frame.%06i.ppm", frameNum);
+
+    // try reading the reference image's frame
+    int width, height;
+    unsigned char* reference_pixels = NULL;
+    bool referenceReadSuccess = readPPM(reference_buffer, reference_pixels, width, height); // attempt to read the reference image 
+    if (!referenceReadSuccess)
+    {
+        // error
+        cout << "Failed to read " << reference_buffer << endl;
+        delete[] reference_pixels; // clean up
+        return false; // false for not considered a shape since it can't be read
+    }
+
+    char folder_name_buffer[256]; // hold folder name for the new shape category
+    sprintf(folder_name_buffer, "categories/shape.%03i", numShapeCategories);
+    int createFolderSuccess = mkdir(folder_name_buffer, S_IRUSR | S_IWUSR | S_IXUSR); // create a folder for this new shape category; returns 0 if successful, -1 otherwise
+
+    if (createFolderSuccess != 0)
+    {
+        // Error
+        cout << "Error creating shape category folder " << folder_name_buffer << endl;
+    }
+
+    imageCategories << folder_name_buffer << endl; // save the shape category folder in the text file to mark a new shape category
+
+    // build copy of reference image frame's filename
+    char reference_copy[256]; // the filename for the copy of the reference image
+    sprintf(reference_copy, "categories/shape.%03i/frame.%06i.ppm", numShapeCategories, frameNum);
+    writePPM(reference_copy, width, height, reference_pixels); // make a copy of the reference image and place it in the folder for the new shape category
+
+    imageCategories << "Reference image: " << reference_copy << endl; // save the shape category reference image filename in the text file
+
+    delete[] reference_pixels; // clean up
+    return true;
+}
+
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// Returns true if categorization is successful, false otherwise
+// totalFrames is the number of total frames to go through
+// imageCategories is the text file to write image category info to
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 bool categorizeAll(int totalFrames, ofstream& imageCategories)
 {
-    bool referenceReadSuccess = false; // store whether the reference image has been read successfully
     int numShapeCategories = 0; // number of shape categories
 
     // create a map that stores whether an image has been categorized indexed by image name
@@ -192,223 +479,42 @@ bool categorizeAll(int totalFrames, ofstream& imageCategories)
     {
         if (allImages[i] == false) // go to the next uncategorized image and set that as the reference image for a new shape category
         {
-            // build reference image frame's filename
-            char reference_buffer[256];
-            sprintf(reference_buffer, "../shapes/frame.%06i.ppm", i);
-
-            // try reading the reference image's frame
-            int width, height;
-            unsigned char* reference_pixels = NULL;
-            referenceReadSuccess = readPPM(reference_buffer, reference_pixels, width, height); // attempt to read the reference image 
-            if (!referenceReadSuccess)
+            bool shapeExists = consideredShape(i); // see if the image has an interesting shape in it; true if there is a shape, false if it's just some white sprinkles
+            if (!shapeExists)
             {
-                // error
-                cout << "Failed to read " << reference_buffer << endl;
-                return false;
-            }
-
-            int numWhitePixels = 0; // number of white pixels in the image
-            int totalPixels = width * height; // total number of pixels in the image
-            for (int k = 0; k < width; k++) // iterate through image array to count number of white pixels
-            {
-                for (int l = 0; l < height; l++)
-                {
-                    int pixelIndex = k + (height - l) * width; // calculate pixel index in image
-                    if ((float(reference_pixels[3 * pixelIndex]) == 255.0) && (float(reference_pixels[3 * pixelIndex + 1]) == 255.0) && (float(reference_pixels[3 * pixelIndex + 2]) == 255.0)) 
-                    {
-                        // white pixel in image
-                        numWhitePixels += 1;
-                    }
-                }
-            }
-            float whiteRatio = float(numWhitePixels) / float(totalPixels); // get ratio of white pixels to all pixels in the image
-            if (whiteRatio < 0.001)
-            {
-                // consider the image as a sprinkle of white pixels with no real shape
-                // add it to shape0 category (the shapeless category)
-                // build copy of reference image frame's filename
-                char reference_copy[256]; // the filename for the copy of the reference image
-                sprintf(reference_copy, "categories/shape.%03i/frame.%06i.ppm", 0, i);
-                writePPM(reference_copy, width, height, reference_pixels); // make a copy of the reference image and place it in the folder for the new shape category
-                allImages[i] = true; // set this image as categorized
+                allImages[i] = true; // set this image as categorized as it's already copied into category0, the no-shape category
                 continue; // done categorizing this image
             }
 
-            numShapeCategories += 1; // one more shape category created
-            char folder_name_buffer[256]; // hold folder name for the new shape category
-            sprintf(folder_name_buffer, "categories/shape.%03i", numShapeCategories);
-            int createFolderSuccess = mkdir(folder_name_buffer, S_IRUSR | S_IWUSR | S_IXUSR); // create a folder for this new shape category; returns 0 if successful, -1 otherwise
-
-            imageCategories << folder_name_buffer << endl; // save the shape category folder in the text file to mark a new shape category
-
-            // build copy of reference image frame's filename
-            char reference_copy[256]; // the filename for the copy of the reference image
-            sprintf(reference_copy, "categories/shape.%03i/frame.%06i.ppm", numShapeCategories, i);
-            writePPM(reference_copy, width, height, reference_pixels); // make a copy of the reference image and place it in the folder for the new shape category
-
-            imageCategories << "Reference image: " << reference_copy << endl; // save the shape category reference image filename in the text file
-
+            numShapeCategories += 1; // increment number of shape categories
+            // create new shape category with this image as reference
+            if (!createCategory(i, numShapeCategories, imageCategories))
+            {
+                // Error
+                cout << "Error creating shape category " << numShapeCategories << endl;
+                return false; 
+            }
             int numShapesInCategory = 1; // hold the number of shapes in this category, initialize to 1 since the category's reference image counts as an image in the category
-
             allImages[i] = true; // remember that this image has been categorized
 
-            if (referenceReadSuccess && (createFolderSuccess == 0)) // reference image is successfully read and shape category folder is successfully created
+            // use that image as the reference image and go through all remaining uncategorized images
+            for (int j = i; j < totalFrames; j++)
             {
-                // use that images as the reference image and go through all remaining uncategorized images
-                for (int j = i; j < totalFrames; j++)
+                if (allImages[j] == false) // only go through remaining uncategorized images
                 {
-                    if (allImages[j] == false) // only go through remaining uncategorized images
+                    // compare two images and get either match or no match, passing in text file name, file number 1 and file number 2
+                    // returns whether the two frames match or not
+                    if (sameShape(i, j, numShapeCategories, sameCutoff, imageCategories))
                     {
-                        // build uncategorized image to compare it to's filename
-                        char img_buffer[256]; // the filename for the uncategorized image
-                        sprintf(img_buffer, "../shapes/frame.%06i.ppm", j);
-
-                        // try reading the next sequential frame as the image to categorize
-                        int width, height;
-                        unsigned char* img_pixels = NULL; // the pixel info for the uncategorized image
-                        bool readSuccess = readPPM(img_buffer, img_pixels, width, height); // attempt to read the uncategorized image to compare it against the reference image
-                        int refWhitePixels = 0; // total number of white pixels in the reference image
-                        int imgWhitePixels = 0; // total number of white pixels in the uncategorized image
-                        int refBlackPixels = 0; // total number of black pixels in the reference image
-                        int imgBlackPixels = 0; // total number of black pixels in the uncategorized image
-
-                        int pixelWhiteMatches = 0; // hold number of white pixel matches between the reference image and the image to categorize
-                        int reflectedPixelWhiteMatches = 0; // hold number of white pixel matches between the reference image and the image to categorize reflected across the y axis
-                        int possibleWhiteMatches = 0; // hold number of possible white pixel matches, either refWhitePixels or imgWhitePixels depending on which is larger; for categorization based on number of white pixel matches
-
-                        int pixelBlackMatches = 0; // hold number of black pixel matches between the reference image and the image to categorize
-                        int reflectedPixelBlackMatches = 0; // hold number of black pixel matches between the reference image and the image to categorize reflected across the y axis
-                        int possibleBlackMatches = 0; // hold number of possible black pixel matches, either refBlackPixels or imgBlackPixels depending on which is larger; for categorization based on number of black pixel matches
-                        
-                        if (readSuccess) // uncategorized image is successfully read
-                        {
-                            // iterate through every pixel in the image and see if the pixels in the reference image and the uncategorized image match up
-                            for (int x = 0; x < width; x++)
-                            {
-                                for (int y = 0; y < height; y++)
-                                {
-                                    int pixelIndex = x + (height - y) * width; // calculate pixel index for pixel values array that represents the final output image
-
-                                    int reflectedPixelIndex = (width - x) + (height - y) * width; // calculate pixel index for pixel value that represents the image reflected across the y axis
-
-                                    if (float(reference_pixels[3 * pixelIndex]) == 255.0)
-                                    {
-                                        // white pixel in reference image
-                                        refWhitePixels += 1;
-                                    }
-
-                                    if (float(img_pixels[3 * pixelIndex]) == 255.0)
-                                    {
-                                        // white pixel in uncategorized image
-                                        imgWhitePixels += 1;
-                                    }
-
-                                    if (float(reference_pixels[3 * pixelIndex]) == 0.0)
-                                    {
-                                        // black pixel in reference image
-                                        refBlackPixels += 1;
-                                    }
-
-                                    if (float(img_pixels[3 * pixelIndex]) == 0.0)
-                                    {
-                                        // black pixel in uncategorized image
-                                        imgBlackPixels += 1;
-                                    }
-
-                                    if ((float(reference_pixels[3 * pixelIndex]) == float(img_pixels[3 * pixelIndex])) && (float(reference_pixels[3 * pixelIndex + 1]) == float(img_pixels[3 * pixelIndex + 1])) && (float(reference_pixels[3 * pixelIndex + 2]) == float(img_pixels[3 * pixelIndex + 2])))
-                                    {
-                                        // the red, green, and blue values of the pixel are the same, so the two images have the same value at that pixel
-                                        if ((reference_pixels[3 * pixelIndex] == 255.0) && (reference_pixels[3 * pixelIndex + 1] == 255.0) && (reference_pixels[3 * pixelIndex + 2] == 255.0))
-                                        {
-                                            pixelWhiteMatches += 1; // white pixel, for categorization based on number of white pixel matches
-                                        }
-
-                                        // the red, green, and blue values of the pixel are the same, so the two images have the same value at that pixel
-                                        if ((reference_pixels[3 * pixelIndex] == 0.0) && (reference_pixels[3 * pixelIndex + 1] == 0.0) && (reference_pixels[3 * pixelIndex + 2] == 0.0))
-                                        {
-                                            pixelBlackMatches += 1; // black pixel, for categorization based on number of black pixel matches
-                                        }
-                                        // pixelMatches += 1; // same color pixel, for categorization based on number of same pixel color matches (both black and white)
-                                    }
-
-                                    if ((float(reference_pixels[3 * pixelIndex]) == float(img_pixels[3 * reflectedPixelIndex])) && (float(reference_pixels[3 * pixelIndex + 1]) == float(img_pixels[3 * reflectedPixelIndex + 1])) && (float(reference_pixels[3 * pixelIndex + 2]) == float(img_pixels[3 * reflectedPixelIndex + 2])))
-                                    {
-                                        // the red, green, and blue values of the reference image pixel and the reflected uncategorized image pixel are the same, same value at those corresponding pixels
-                                        if ((reference_pixels[3 * pixelIndex] == 255.0) && (reference_pixels[3 * pixelIndex + 1] == 255.0) && (reference_pixels[3 * pixelIndex + 2] == 255.0))
-                                        {
-                                            reflectedPixelWhiteMatches += 1; // white pixel, for categorization based on number of white pixel matches
-                                        }
-
-                                        // the red, green, and blue values of the reference image pixel and the reflected uncategorized image pixel are the same, same value at those corresponding pixels
-                                        if ((reference_pixels[3 * pixelIndex] == 0.0) && (reference_pixels[3 * pixelIndex + 1] == 0.0) && (reference_pixels[3 * pixelIndex + 2] == 0.0))
-                                        {
-                                            reflectedPixelBlackMatches += 1; // black pixel, for categorization based on number of black pixel matches
-                                        }
-                                        // reflectedPixelMatches += 1; // same color pixel, for categorization based on number of same pixel color matches (both black and white)
-                                    }
-                                }
-                            }
-                            
-                            // determine categorization based on 0.5 * (number of white pixel matches / total possible white pixel matches) + 0.5 * (number of black pixel matches / total possible black pixel matches)
-                            possibleWhiteMatches = refWhitePixels;
-                            if (imgWhitePixels > refWhitePixels)
-                            {
-                                possibleWhiteMatches = imgWhitePixels; // get the largest number of white pixels, either the amount from the reference image or the uncategorized image
-                            }
-
-                            possibleBlackMatches = refBlackPixels;
-                            if (imgBlackPixels > refBlackPixels)
-                            {
-                                possibleBlackMatches = imgBlackPixels; // get the largest number of black pixels, either the amount from the reference image or the uncategorized image
-                            }
-
-                            float whiteRatio = float(pixelWhiteMatches) / float(possibleWhiteMatches); // get the ratio of how many pixels matched up between the two images compared to the total number of pixels; only white pixel matches
-                            float blackRatio = float(pixelBlackMatches) / float(possibleBlackMatches); // get the ratio of how many pixels matched up between the two images compared to the total number of pixels; only black pixel matches
-                            float ratio = (0.5 * whiteRatio) + (0.5 * blackRatio); // calculate overall ratio of matches by evenly weighting the ratio of white pixel matches and the ratio of black pixel matches
-
-                            float whiteReflectedRatio = float(reflectedPixelWhiteMatches) / float(possibleWhiteMatches); // get the ratio of how many pixels matched up between the reference image and the reflected uncategorized image compared to the total number of pixels; only white pixel matches
-                            float blackReflectedRatio = float(reflectedPixelBlackMatches) / float(possibleBlackMatches); // get the ratio of how many pixels matched up between the reference image and the reflected uncategorized image compared to the total number of pixels; only black pixel matches
-                            float reflectedRatio = (0.5 * whiteReflectedRatio) + (0.5 * blackReflectedRatio); // calculate overall ratio of matches by evenly weighting the ratio of reflected white pixel matches and the ratio of reflected black pixel matches
-                            // float reflectedRatio = whiteReflectedRatio; // calculate overall ratio of matches by evenly weighting the ratio of reflected white pixel matches and the ratio of reflected black pixel matches
-
-                            if (ratio > sameCutoff || reflectedRatio > sameCutoff) // will need to adjust ratio
-                            {
-                                // this image is part of the reference image's category
-                                // cout << "ratio: " << ratio << endl;
-                                // cout << "reflectedRatio: " << reflectedRatio << endl;
-                                allImages[j] = true; // remember that this image has been categorized
-                                numShapesInCategory += 1; // increment the number of shapes in this category
-                                
-                                imageCategories << img_buffer << " "; // save the categorized image
-                                if (ratio > sameCutoff)
-                                {
-                                    // reference image and uncategorized image match
-                                    imageCategories << "with ratio: " << ratio << ", whiteRatio: " << whiteRatio << ", blackRatio: " << blackRatio << endl; // save the scores for the match
-                                    imageCategories << "with reflectedRatio: " << reflectedRatio << ", whiteReflectedRatio: " << whiteReflectedRatio << ", blackReflectedRatio: " << blackReflectedRatio << endl; // save the scores for the match
-                                }
-                                else if (reflectedRatio > sameCutoff)
-                                {
-                                    // reference image and reflected uncategorized image match
-                                    imageCategories << "with reflectedRatio: " << reflectedRatio << ", whiteReflectedRatio: " << whiteReflectedRatio << ", blackReflectedRatio: " << blackReflectedRatio << endl; // save the scores for the match
-                                }
-                                // imageCategories << folder_name_buffer << ": " << i << " and " << j << " with ratio: " << ratio << ", reflectedRatio: " << reflectedRatio << ", reference image had possibleWhiteMatches: " << possibleWhiteMatches << endl; // save the category pair in a text file for now
-                                
-                                // build copy of uncategorized image frame's filename
-                                char uncategorized_copy[256]; // filename for the copy of the uncategorized image that is now categorized in the same category as the reference image
-                                sprintf(uncategorized_copy, "categories/shape.%03i/frame.%06i.ppm", numShapeCategories, j);
-                                writePPM(uncategorized_copy, width, height, img_pixels); // make a copy of the newly categorized image and place it in the shape category's folder
-                            }
-                        }
-
-                        delete[] img_pixels; // clean up
+                        allImages[j] = true; // remember that this image has been categorized
+                        numShapesInCategory += 1; // increment the number of shapes in this category
+                        // imageCategories << folder_name_buffer << ": " << i << " and " << j << " with ratio: " << ratio << ", reflectedRatio: " << reflectedRatio << ", reference image had possibleWhiteMatches: " << possibleWhiteMatches << endl; // save the category pair in a text file for now
                     }
                 }
             }
 
             imageCategories << "Number of shapes in category " << numShapeCategories << ": " << numShapesInCategory << endl; // remember number of shapes in this category
             imageCategories << endl; // spacer
-
-            delete[] reference_pixels; // clean up
         }
     }
 
