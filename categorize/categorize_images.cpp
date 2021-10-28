@@ -10,6 +10,12 @@
 
 using namespace std;
 
+// forward declare the same shape function here
+bool sameShape(int refFrameNum, int uncategorizedFrameNum, int categoryNum, float cutoffScore, ofstream& shapeMatches, bool allInfo);
+
+// forward declare the create category function here
+bool createCategory(int frameNum, int numShapeCategories, ofstream& shapeMatches);
+
 // forward declare the categorize all images function here so that we can put it at the bottom of the file
 bool categorizeAll(int totalFrames, ofstream& imageCategories);
 
@@ -137,17 +143,57 @@ int main(int argc, char** argv)
         else if (strcmp(argv[1], "-specific") == 0) 
         {
             // Calculate match between two specific images
-            // Program usage: ./categorize -specific (first image #) (second image #) 
-            if (argc != 4)
+            // Program usage: ./categorize -specific (first image #) (second image #) (cutoff score)
+            if (argc != 5)
             {
                 // error
-                cout << "Program usage: ./categorize -specific (first image #) (second image #)" << endl;
+                cout << "Program usage: ./categorize -specific (first image #) (second image #) (cutoff score)" << endl;
                 return 1;
             }
 
             int firstImgNum = atoi(argv[2]); // get the first image's frame #
             int secondImgNum = atoi(argv[3]); // get the second image's frame #
-            cout << "Calculating match between " << firstImgNum << " and " << secondImgNum << endl;
+            float cutoffScore = atof(argv[4]); // get the cutoff score for shape matches
+            cout << "Calculating match between " << firstImgNum << " and " << secondImgNum << " with a cutoff score of " << cutoffScore << endl;
+
+            // create and open a text file to store categories of images
+            ofstream shapeMatchInfo("categories/shape_match.txt");
+            if (shapeMatchInfo.is_open()) // make sure the text file can be opened
+            {
+                shapeMatchInfo << "Shape match information for: "; // save where the shape match information came from in the text file (the command)
+                for (int i = 0; i < argc; i++)
+                {
+                    shapeMatchInfo << argv[i] << " ";
+                }
+                shapeMatchInfo << endl;
+
+                // create new shape category with the first image as reference
+                if (!createCategory(firstImgNum, 0, shapeMatchInfo))
+                {
+                    // Error
+                    cout << "Error creating shape category " << 0 << endl;
+                    return 1; 
+                }
+
+                // check if the two shapes match
+                bool match = sameShape(firstImgNum, secondImgNum, 0, cutoffScore, shapeMatchInfo, true);
+                if (match)
+                {
+                    // the shapes in the two images match
+                    cout << "Match found: " << firstImgNum << " and " << secondImgNum << endl;
+                }
+                else
+                {
+                    // the shapes in the two images do not match
+                    cout << "No match: " << firstImgNum << " and " << secondImgNum << endl;
+                }
+            }
+            else
+            {
+                // error
+                cout << "Text file to hold shape match information cannot be opened" << endl;
+                return 1;
+            }
         }
     }
     else
@@ -165,9 +211,10 @@ int main(int argc, char** argv)
 // refFrameNum is the number of the reference image file
 // uncategorizedFrameNum is the number of the uncategorized image file
 // cutoffScore is the cutoff score for same shape matches
-// imageCategories is the text file to write image category info to
+// shapeMatches is the text file to write image category info to
+// allInfo specifies whether data from failed shape categorizations should be written to shapeMatches
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-bool sameShape(int refFrameNum, int uncategorizedFrameNum, int categoryNum, float cutoffScore, ofstream& imageCategories)
+bool sameShape(int refFrameNum, int uncategorizedFrameNum, int categoryNum, float cutoffScore, ofstream& shapeMatches, bool allInfo)
 {
     // build reference image frame's filename
     char reference_buffer[256];
@@ -309,27 +356,36 @@ bool sameShape(int refFrameNum, int uncategorizedFrameNum, int categoryNum, floa
             sprintf(uncategorized_copy, "categories/shape.%03i/frame.%06i.ppm", categoryNum, uncategorizedFrameNum);
             writePPM(uncategorized_copy, width, height, img_pixels); // make a copy of the newly categorized image and place it in the shape category's folder
 
-            imageCategories << img_buffer << " "; // save the categorized image
+            shapeMatches << img_buffer << " "; // save the categorized image
             if (ratio > cutoffScore)
             {
                 // reference image and uncategorized image match
-                imageCategories << "with ratio: " << ratio << ", whiteRatio: " << whiteRatio << ", blackRatio: " << blackRatio << endl; // save the scores for the match
-                imageCategories << "with reflectedRatio: " << reflectedRatio << ", whiteReflectedRatio: " << whiteReflectedRatio << ", blackReflectedRatio: " << blackReflectedRatio << endl; // save the scores for the match
+                shapeMatches << "with ratio: " << ratio << ", whiteRatio: " << whiteRatio << ", blackRatio: " << blackRatio << endl; // save the scores for the match
+                shapeMatches << "with reflectedRatio: " << reflectedRatio << ", whiteReflectedRatio: " << whiteReflectedRatio << ", blackReflectedRatio: " << blackReflectedRatio << endl; // save the scores for the match
             }
             else if (reflectedRatio > cutoffScore)
             {
                 // reference image and reflected uncategorized image match
-                imageCategories << "with reflectedRatio: " << reflectedRatio << ", whiteReflectedRatio: " << whiteReflectedRatio << ", blackReflectedRatio: " << blackReflectedRatio << endl; // save the scores for the match
+                shapeMatches << "with reflectedRatio: " << reflectedRatio << ", whiteReflectedRatio: " << whiteReflectedRatio << ", blackReflectedRatio: " << blackReflectedRatio << endl; // save the scores for the match with uncategorized image reflection
             }
             delete[] reference_pixels; // clean up
             delete[] img_pixels; // clean up
             return true;
         }
-
-        // images don't match
-        delete[] reference_pixels; // clean up
-        delete[] img_pixels; // clean up
-        return false;    
+        else 
+        {
+            // images don't match
+            if (allInfo)
+            {
+                // write failed shape categorization info to text file
+                shapeMatches << "with ratio: " << ratio << ", whiteRatio: " << whiteRatio << ", blackRatio: " << blackRatio << endl; // save the scores for the failed match
+                shapeMatches << "with reflectedRatio: " << reflectedRatio << ", whiteReflectedRatio: " << whiteReflectedRatio << ", blackReflectedRatio: " << blackReflectedRatio << endl; // save the scores for the failed match with uncategorized image reflection
+                
+            }
+            delete[] reference_pixels; // clean up
+            delete[] img_pixels; // clean up
+            return false; 
+        }
     }
     else
     {
@@ -402,9 +458,9 @@ bool consideredShape(int frameNum)
 // Returns true if new category creation is successful, false if encountered error
 // frameNum is the frame number of the image to use as the reference image
 // numShapeCategories is the number used for the new shape category, since index 0
-// imageCategories is the text file to write image category info to
+// shapeMatches is the text file to write image category info to
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-bool createCategory(int frameNum, int numShapeCategories, ofstream& imageCategories)
+bool createCategory(int frameNum, int numShapeCategories, ofstream& shapeMatches)
 {
     // build reference image frame's filename
     char reference_buffer[256];
@@ -432,14 +488,14 @@ bool createCategory(int frameNum, int numShapeCategories, ofstream& imageCategor
         cout << "Error creating shape category folder " << folder_name_buffer << endl;
     }
 
-    imageCategories << folder_name_buffer << endl; // save the shape category folder in the text file to mark a new shape category
+    shapeMatches << folder_name_buffer << endl; // save the shape category folder in the text file to mark a new shape category
 
     // build copy of reference image frame's filename
     char reference_copy[256]; // the filename for the copy of the reference image
     sprintf(reference_copy, "categories/shape.%03i/frame.%06i.ppm", numShapeCategories, frameNum);
     writePPM(reference_copy, width, height, reference_pixels); // make a copy of the reference image and place it in the folder for the new shape category
 
-    imageCategories << "Reference image: " << reference_copy << endl; // save the shape category reference image filename in the text file
+    shapeMatches << "Reference image: " << reference_copy << endl; // save the shape category reference image filename in the text file
 
     delete[] reference_pixels; // clean up
     return true;
@@ -504,7 +560,7 @@ bool categorizeAll(int totalFrames, ofstream& imageCategories)
                 {
                     // compare two images and get either match or no match, passing in text file name, file number 1 and file number 2
                     // returns whether the two frames match or not
-                    if (sameShape(i, j, numShapeCategories, sameCutoff, imageCategories))
+                    if (sameShape(i, j, numShapeCategories, sameCutoff, imageCategories, false))
                     {
                         allImages[j] = true; // remember that this image has been categorized
                         numShapesInCategory += 1; // increment the number of shapes in this category
