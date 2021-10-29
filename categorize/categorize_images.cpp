@@ -17,7 +17,7 @@ bool sameShape(int refFrameNum, int uncategorizedFrameNum, int categoryNum, floa
 bool createCategory(int frameNum, int numShapeCategories, ofstream& shapeMatches);
 
 // forward declare the categorize all images function here so that we can put it at the bottom of the file
-bool categorizeAll(int totalFrames, ofstream& imageCategories);
+bool categorizeAll(int totalFrames, ofstream& imageCategories, float cutoffScore);
 
 //////////////////////////////////////////////////////////////////////////////////
 // Read in a raw PPM file of the "P6" style.
@@ -103,11 +103,11 @@ int main(int argc, char** argv)
         if (strcmp(argv[1], "-all") == 0) 
         {
             // Categorize all images
-            // Program usage: ./categorize -all (# of images)
-            if (argc != 3)
+            // Program usage: ./categorize -all (# of images) (cutoff score)
+            if (argc != 4)
             {
                 // error
-                cout << "Program usage: ./categorize -all (# of images)" << endl;
+                cout << "Program usage: ./categorize -all (# of images) (cutoff score)" << endl;
                 return 1;
             }
 
@@ -124,7 +124,7 @@ int main(int argc, char** argv)
                 imageCategories << endl;
 
                 // categorize all images
-                bool categorizeSuccess = categorizeAll(atoi(argv[2]), imageCategories); 
+                bool categorizeSuccess = categorizeAll(atoi(argv[2]), imageCategories, atof(argv[3])); 
                 if (!categorizeSuccess)
                 {
                     // error
@@ -195,6 +195,66 @@ int main(int argc, char** argv)
                 return 1;
             }
         }
+        else if (strcmp(argv[1], "-group") == 0)
+        {
+            // Calculate match scores for a set of images
+            // Program usage: ./categorize -group (cutoff score) (first image #) (second image #) (etc.)
+            if (argc < 5)
+            {
+                // error
+                cout << "Program usage: ./categorize -group (cutoff score) (first image #) (second image #) (etc.)" << endl;
+                return 1;
+            }
+
+            float cutoffScore = atof(argv[2]); // get the cutoff score for shape matches
+            int refImageNum = atoi(argv[3]); // get the first frame number for an image and use that image as the category's reference image in order to calculate match scores 
+
+            // create and open a text file to store categories of images
+            ofstream categoryMatchInfo("categories/category_match.txt");
+            if (categoryMatchInfo.is_open()) // make sure the text file can be opened
+            {
+                categoryMatchInfo << "Shape match information for: "; // save where the shape match information came from in the text file (the command)
+                for (int i = 0; i < argc; i++)
+                {
+                    categoryMatchInfo << argv[i] << " ";
+                }
+                categoryMatchInfo << endl;
+
+                // create new shape category with the first image as reference
+                if (!createCategory(refImageNum, 0, categoryMatchInfo))
+                {
+                    // error
+                    cout << "Error creating shape category " << 0 << endl;
+                    return 1; 
+                }
+
+                for (int i = 4; i < argc; i++) // compare following images with the reference image #
+                {
+                    categoryMatchInfo << "Comparison with frame number " << argv[i] << endl;
+
+                    // check if the two shapes match
+                    bool match = sameShape(refImageNum, atoi(argv[i]), 0, cutoffScore, categoryMatchInfo, true);
+                    if (match)
+                    {
+                        // the shapes in the two images match
+                        cout << "Match found: " << refImageNum << " and " << argv[i] << endl;
+                    }
+                    else
+                    {
+                        // the shapes in the two images do not match
+                        cout << "No match: " << refImageNum << " and " << argv[i] << endl;
+                    }
+
+                    categoryMatchInfo << endl; // spacer
+                }
+            }
+            else
+            {
+                // error
+                cout << "Text file to hold group shape match information cannot be opened" << endl;
+                return 1;
+            }
+        } 
     }
     else
     {
@@ -210,7 +270,7 @@ int main(int argc, char** argv)
 // Returns true if the uncategorized image matches the reference image, false otherwise
 // refFrameNum is the number of the reference image file
 // uncategorizedFrameNum is the number of the uncategorized image file
-// cutoffScore is the cutoff score for same shape matches
+// cutoffScore is the cutoff score for same shape matches; the value should be between 0 and 1
 // shapeMatches is the text file to write image category info to
 // allInfo specifies whether data from failed shape categorizations should be written to shapeMatches
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -342,11 +402,12 @@ bool sameShape(int refFrameNum, int uncategorizedFrameNum, int categoryNum, floa
         float whiteRatio = float(pixelWhiteMatches) / float(possibleWhiteMatches); // get the ratio of how many pixels matched up between the two images compared to the total number of pixels; only white pixel matches
         float blackRatio = float(pixelBlackMatches) / float(possibleBlackMatches); // get the ratio of how many pixels matched up between the two images compared to the total number of pixels; only black pixel matches
         float ratio = (0.5 * whiteRatio) + (0.5 * blackRatio); // calculate overall ratio of matches by evenly weighting the ratio of white pixel matches and the ratio of black pixel matches
+        // float ratio = whiteRatio; 
 
         float whiteReflectedRatio = float(reflectedPixelWhiteMatches) / float(possibleWhiteMatches); // get the ratio of how many pixels matched up between the reference image and the reflected uncategorized image compared to the total number of pixels; only white pixel matches
         float blackReflectedRatio = float(reflectedPixelBlackMatches) / float(possibleBlackMatches); // get the ratio of how many pixels matched up between the reference image and the reflected uncategorized image compared to the total number of pixels; only black pixel matches
         float reflectedRatio = (0.5 * whiteReflectedRatio) + (0.5 * blackReflectedRatio); // calculate overall ratio of matches by evenly weighting the ratio of reflected white pixel matches and the ratio of reflected black pixel matches
-        // float reflectedRatio = whiteReflectedRatio; // calculate overall ratio of matches by evenly weighting the ratio of reflected white pixel matches and the ratio of reflected black pixel matches
+        // float reflectedRatio = whiteReflectedRatio; 
 
         if (ratio > cutoffScore || reflectedRatio > cutoffScore) // will need to adjust ratio
         {
@@ -361,7 +422,7 @@ bool sameShape(int refFrameNum, int uncategorizedFrameNum, int categoryNum, floa
             {
                 // reference image and uncategorized image match
                 shapeMatches << "with ratio: " << ratio << ", whiteRatio: " << whiteRatio << ", blackRatio: " << blackRatio << endl; // save the scores for the match
-                shapeMatches << "with reflectedRatio: " << reflectedRatio << ", whiteReflectedRatio: " << whiteReflectedRatio << ", blackReflectedRatio: " << blackReflectedRatio << endl; // save the scores for the match
+                // shapeMatches << "with reflectedRatio: " << reflectedRatio << ", whiteReflectedRatio: " << whiteReflectedRatio << ", blackReflectedRatio: " << blackReflectedRatio << endl; // save the scores for the match
             }
             else if (reflectedRatio > cutoffScore)
             {
@@ -380,7 +441,12 @@ bool sameShape(int refFrameNum, int uncategorizedFrameNum, int categoryNum, floa
                 // write failed shape categorization info to text file
                 shapeMatches << "with ratio: " << ratio << ", whiteRatio: " << whiteRatio << ", blackRatio: " << blackRatio << endl; // save the scores for the failed match
                 shapeMatches << "with reflectedRatio: " << reflectedRatio << ", whiteReflectedRatio: " << whiteReflectedRatio << ", blackReflectedRatio: " << blackReflectedRatio << endl; // save the scores for the failed match with uncategorized image reflection
-                
+
+                // for error checking to make sure the right images are being read in
+                // build copy of uncategorized image frame's filename
+                char uncategorized_copy[256]; // filename for the copy of the uncategorized image that is now categorized in the same category as the reference image
+                sprintf(uncategorized_copy, "categories/shape.%03i/frame.%06i.ppm", categoryNum, uncategorizedFrameNum);
+                writePPM(uncategorized_copy, width, height, img_pixels); // make a copy of the newly categorized image and place it in the shape category's folder
             }
             delete[] reference_pixels; // clean up
             delete[] img_pixels; // clean up
@@ -506,8 +572,9 @@ bool createCategory(int frameNum, int numShapeCategories, ofstream& shapeMatches
 // Returns true if categorization is successful, false otherwise
 // totalFrames is the number of total frames to go through
 // imageCategories is the text file to write image category info to
+// cutoffScore is the cutoff score for same shape matches; the value should be between 0 and 1
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-bool categorizeAll(int totalFrames, ofstream& imageCategories)
+bool categorizeAll(int totalFrames, ofstream& imageCategories, float cutoffScore)
 {
     int numShapeCategories = 0; // number of shape categories
 
@@ -528,7 +595,7 @@ bool categorizeAll(int totalFrames, ofstream& imageCategories)
         return false;
     }
 
-    float sameCutoff = 0.80; // if ratio between images is greater than sameCutoff, then they are categorized as the same shape; otherwise, they are categorized as different shapes
+    float sameCutoff = cutoffScore; // if ratio between images is greater than sameCutoff, then they are categorized as the same shape; otherwise, they are categorized as different shapes
     imageCategories << "Match cutoff score: " << sameCutoff << endl; // save the cutoff score for matches in the categorization text file
 
     for (int i = 0; i < totalFrames; i++)
