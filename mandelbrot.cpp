@@ -814,7 +814,7 @@ int main(int argc, char** argv)
     else // error
     {
       cout << "Program usage: ./mandelbrot -random (-any or -pinned) (# of random combinations of two roots) (-color or -noColor) (-center or -notCentered)" << endl;
-      return 0;
+      return 1;
     }
 
     cout << "numCombinations: " << numCombinations << endl; // numCombinations holds # of images to generate (each image requires a pair of roots)
@@ -836,7 +836,7 @@ int main(int argc, char** argv)
     if (numRoots!= randomRoots.size()) // make sure number of random roots generated is correct
     {
       cout << "generateRoots failed" << endl;
-      return 0;
+      return 1;
     }
 
     for (int i = 0; i < numRoots; i++)
@@ -902,7 +902,7 @@ int main(int argc, char** argv)
     else 
     {
       cout << "Unable to open file." << endl;
-      return 0;
+      return 1;
     }
   }
   else if (mode == 3)
@@ -946,7 +946,7 @@ int main(int argc, char** argv)
     else // error
     {
       cout << "Program usage: ./mandelbrot -pinned (grid size x) (grid size y) (-color or -noColor) (-center or -notCentered)" << endl;
-      return 0;
+      return 1;
     }
 
     // In case the field is rectangular, make sure to center the eye
@@ -1004,7 +1004,7 @@ int main(int argc, char** argv)
     else 
     {
       cout << "Unable to open file." << endl;
-      return 0;
+      return 1;
     }
 
   }
@@ -1049,7 +1049,7 @@ int main(int argc, char** argv)
     else // error
     {
       cout << "Program usage: ./mandelbrot -full (grid size x) (grid size y) (-color or -noColor) (-center or -notCentered)" << endl;
-      return 0;
+      return 1;
     }
 
     // In case the field is rectangular, make sure to center the eye
@@ -1122,11 +1122,11 @@ int main(int argc, char** argv)
     else 
     {
       cout << "Unable to open file." << endl;
-      return 0;
+      return 1;
     }
   }
 
-  return 1;
+  return 0;
 }
 
 ///////////////////////////////////////////////////////////////////////
