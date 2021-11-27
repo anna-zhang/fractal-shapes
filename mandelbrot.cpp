@@ -781,17 +781,18 @@ int main(int argc, char** argv)
     // create and open a text file to store COM information alongside output image file names
     ofstream comInfo("shapes/COM_info.txt");
 
+    int numRootsToExplore = 2; // default # roots if not specified by user
     int numCombinations = 8; // default # of random combinations if not specified by user
 
     int rootCombinations = 0; // hold number of root combinations tried
 
-    // format: ./mandelbrot -random (-any or -pinned) (# of random combinations of two roots) (-color or -noColor) (-center or -notCentered)
-    if (argc == 6)
+    // format: ./mandelbrot -random (-any or -pinned) (# of roots) (# of random combinations of roots) (-color or -noColor) (-center or -notCentered)
+    if (argc == 7)
     {
-      // set # of random combinations to be user-specified
-      numCombinations = atoi(argv[3]);
+      numRootsToExplore = atoi(argv[3]); // set # of roots to be user-specified
+      numCombinations = atoi(argv[4]); // set # of random combinations to be user-specified
 
-      if (strcmp(argv[4], "-color") == 0)
+      if (strcmp(argv[5], "-color") == 0)
       {
         colorRed = true; // color roots red
       }
@@ -800,7 +801,7 @@ int main(int argc, char** argv)
         colorRed = false; // don't color roots red
       }
 
-      if (strcmp(argv[5], "-center") == 0)
+      if (strcmp(argv[6], "-center") == 0)
       {
         centerShape = 1; // center the shape
       }
@@ -813,22 +814,22 @@ int main(int argc, char** argv)
     }
     else // error
     {
-      cout << "Program usage: ./mandelbrot -random (-any or -pinned) (# of random combinations of two roots) (-color or -noColor) (-center or -notCentered)" << endl;
+      cout << "Program usage: ./mandelbrot -random (-any or -pinned) (# of roots) (# of random combinations of roots to try) (-color or -noColor) (-center or -notCentered)" << endl;
       return 1;
     }
 
     cout << "numCombinations: " << numCombinations << endl; // numCombinations holds # of images to generate (each image requires a pair of roots)
     bool pinned = false; // hold whether one root is pinned to the origin, as set by the -pinned flag
 
-    int numRoots = 0; 
+    int numRoots = 0; // number of root locations to generate
     if (strcmp(argv[2], "-pinned") == 0)
     {
-      numRoots = numCombinations; // one root can move per image since the other root is pinned to the origin
+      numRoots = numCombinations * (numRootsToExplore - 1); // one root is pinned to the origin, the other roots can move
       pinned = true;
     }
     else
     {
-      numRoots = numCombinations  * 2; // numRoots holds # of random root locations to generate, two are required for each image if two roots can move
+      numRoots = numCombinations * numRootsToExplore; // numRoots holds # of random root locations to generate, two are required for each image if two roots can move
     }
     // test
     generateRoots(numRoots);
@@ -866,9 +867,9 @@ int main(int argc, char** argv)
       rootInfo << endl;
       
 
-      // two root case
+      // generate fractal shapes
       int image_num = 0; // current output image number
-      currentTop = 2; // # of roots
+      currentTop = numRootsToExplore; // # of roots
       for (int i = 0; i < numCombinations; i++) // go through root combinations
       {
         char buffer[256]; // hold location to put image file
@@ -878,12 +879,17 @@ int main(int argc, char** argv)
         if (pinned)
         {
           topRoots.push_back(VEC3F(0.0, 0.0, 0.0)); // first root is pinned to the origin
-          topRoots.push_back(VEC3F(randomRoots[i][0], randomRoots[i][1], 0.0)); // second root is in a random position
+          for (int j = 0; j < (numRootsToExplore - 1); j++)
+          {
+            topRoots.push_back(VEC3F(randomRoots[j + (i * (numRootsToExplore - 1))][0], randomRoots[j + (i * (numRootsToExplore - 1))][1], 0.0)); // root is in a random position
+          }
         }
         else
         {
-          topRoots.push_back(VEC3F(randomRoots[i * 2][0], randomRoots[i * 2][1], 0.0)); // first root is in a random position
-          topRoots.push_back(VEC3F(randomRoots[i * 2 + 1][0], randomRoots[i * 2 + 1][1], 0.0)); // second root is in a random position
+          for (int j = 0; j < numRootsToExplore; j++)
+          {
+            topRoots.push_back(VEC3F(randomRoots[j + (i * numRootsToExplore)][0], randomRoots[j + (i * numRootsToExplore)][1], 0.0)); // root is in a random position
+          }
         }
 
         bool shape = renderImage(xRes, yRes, buffer, image_num, VEC3F(0.0, 0.0, 0.0), centerShape, comInfo); // compute shape, if any
@@ -891,7 +897,16 @@ int main(int argc, char** argv)
 
         if (shape)
         { // only save root information if shape exists
-          rootInfo << buffer << ": " << "topRoots0" << topRoots[0] << ", topRoots1" << topRoots[1] << endl; // write root info to text file
+          rootInfo << buffer << ": ";
+          for (int j = 0; j < numRootsToExplore; j++)
+          {
+            rootInfo << "topRoots" << j << topRoots[j];
+            if (j != (numRootsToExplore - 1))
+            {
+              rootInfo << ", ";
+            }
+          }
+          rootInfo << endl; // write root info to text file
           image_num++;
         }
       }

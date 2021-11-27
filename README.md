@@ -5,10 +5,10 @@ A tool to explore and categorize two root polynomials
 ## Modes for exploring two root polynomial:
 - **Single shape exploration:** user inputs locations of roots and creates an OpenGL window to preview the shape generated <br/>
 ```./mandelbrot -single (# of top roots n) (root0_x) (root0_y) … (rootn-1_x) (rootn-1_y)```
-- **Random exploration:** generates (# of random combinations of two roots) images with either both roots in random locations or one root in a random location and one root pinned to the origin <br/>
-```./mandelbrot -random (-any or -pinned) (# of random combinations of two roots) (-color or -noColor) (-center or -notCentered)``` <br/>
-```./mandelbrot -random -any (# of random combinations of two roots) (-color or -noColor) (-center or -notCentered)``` generates shapes in which both root locations are randomized <br/>
-```./mandelbrot -random -pinned (# of random combinations of two roots) (-color or -noColor) (-center or -notCentered)``` generates shapes in which one root location is randomized and one is pinned to the origin 
+- **Random exploration:** generates (# of random combinations of roots to try) images with either all roots in random locations or one root pinned to the origin and the other roots in random locations<br/>
+```./mandelbrot -random (-any or -pinned) (# of roots) (# of random combinations of roots to try) (-color or -noColor) (-center or -notCentered)``` <br/>
+```./mandelbrot -random -any (# of roots) (# of random combinations of roots to try) (-color or -noColor) (-center or -notCentered)``` generates shapes in which all root locations are randomized <br/>
+```./mandelbrot -random -pinned (# of roots) (# of random combinations of roots to try) (-color or -noColor) (-center or -notCentered)``` generates shapes in which one root location is pinned to the origin and all other root locations are randomized 
 - **Regular grid exploration with two roots, one pinned to the origin:** generates shapes with one root at a location that follows a regular grid of size (grid size x) by (grid size y) and the other root pinned to the origin <br/>
 ```./mandelbrot -pinned (grid size x) (grid size y) (-color or -noColor) (-center or -notCentered)``` <br/>
 - **Regular grid exploration with two roots:** generates shapes with roots at locations following a regular grid of size (grid size x) by (grid size y)
