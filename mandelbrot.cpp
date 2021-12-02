@@ -502,7 +502,8 @@ VEC3F complexMultiply(VEC3F left, VEC3F right)
 ///////////////////////////////////////////////////////////////////////////////////////////////
 void generateRoots(int numRoots)
 {
-  mt19937 gen(456); // initialize generator with seed
+  random_device rd;
+  mt19937 gen(rd()); // initialize generator
   uniform_real_distribution<float> dist(-2.0, 2.0); // set range for random number
 
   for (int i = 0; i < numRoots; i++)
@@ -814,7 +815,7 @@ int main(int argc, char** argv)
     }
     else // error
     {
-      cout << "Program usage: ./mandelbrot -random (-any or -pinned) (# of roots) (# of random combinations of roots to try) (-color or -noColor) (-center or -notCentered)" << endl;
+      cout << "Program usage: ./mandelbrot -random (-any or -pinned) (# of roots) (# of images to generate) (-color or -noColor) (-center or -notCentered)" << endl;
       return 1;
     }
 
@@ -824,25 +825,12 @@ int main(int argc, char** argv)
     int numRoots = 0; // number of root locations to generate
     if (strcmp(argv[2], "-pinned") == 0)
     {
-      numRoots = numCombinations * (numRootsToExplore - 1); // one root is pinned to the origin, the other roots can move
+      numRoots = numRootsToExplore - 1; // one root is pinned to the origin, the other root can move
       pinned = true;
     }
     else
     {
-      numRoots = numCombinations * numRootsToExplore; // numRoots holds # of random root locations to generate, two are required for each image if two roots can move
-    }
-    // test
-    generateRoots(numRoots);
-    
-    if (numRoots!= randomRoots.size()) // make sure number of random roots generated is correct
-    {
-      cout << "generateRoots failed" << endl;
-      return 1;
-    }
-
-    for (int i = 0; i < numRoots; i++)
-    {
-      cout << "randomRoot[" << i << "]: " << randomRoots[i] << endl;
+      numRoots = numRootsToExplore; // numRoots holds # of random root locations to generate, all roots can have random locations
     }
 
     // In case the field is rectangular, make sure to center the eye
@@ -869,9 +857,23 @@ int main(int argc, char** argv)
 
       // generate fractal shapes
       int image_num = 0; // current output image number
-      currentTop = numRootsToExplore; // # of roots
+      currentTop = numRootsToExplore; // # of roots in a single image
       for (int i = 0; i < numCombinations; i++) // go through root combinations
       {
+        randomRoots.clear(); // clear roots from last iteration
+        generateRoots(numRoots); // generate random roots
+    
+        if (numRoots!= randomRoots.size()) // make sure number of random roots generated is correct
+        {
+          cout << "generateRoots failed" << endl;
+          return 1;
+        }
+
+        for (int j = 0; j < numRoots; j++)
+        {
+          cout << "randomRoot[" << j << "]: " << randomRoots[j] << endl;
+        }
+
         char buffer[256]; // hold location to put image file
         sprintf(buffer, "./random/frame.%06i.ppm", image_num);
 
@@ -881,14 +883,14 @@ int main(int argc, char** argv)
           topRoots.push_back(VEC3F(0.0, 0.0, 0.0)); // first root is pinned to the origin
           for (int j = 0; j < (numRootsToExplore - 1); j++)
           {
-            topRoots.push_back(VEC3F(randomRoots[j + (i * (numRootsToExplore - 1))][0], randomRoots[j + (i * (numRootsToExplore - 1))][1], 0.0)); // root is in a random position
+            topRoots.push_back(randomRoots[j]); // root is in a random position
           }
         }
         else
         {
           for (int j = 0; j < numRootsToExplore; j++)
           {
-            topRoots.push_back(VEC3F(randomRoots[j + (i * numRootsToExplore)][0], randomRoots[j + (i * numRootsToExplore)][1], 0.0)); // root is in a random position
+            topRoots.push_back(randomRoots[j]); // root is in a random position
           }
         }
 
@@ -906,11 +908,15 @@ int main(int argc, char** argv)
               rootInfo << ", ";
             }
           }
-          rootInfo << endl; // write root info to text file
+          rootInfo << "; rootCombinations tried: " << rootCombinations << endl; // write root info to text file and remember the number of root combinations tried
           image_num++;
         }
+        else
+        {
+          i -= 1;
+        }
       }
-      rootInfo << "rootCombinations tried: " << rootCombinations << endl;
+      rootInfo << "total rootCombinations tried: " << rootCombinations << endl;
       rootInfo.close(); // close file after done writing
       comInfo.close(); // close COM text file after done writing
     }
