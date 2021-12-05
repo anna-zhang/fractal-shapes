@@ -18,6 +18,9 @@
 #include <fstream>
 #include "QUICKTIME_MOVIE.h"
 
+#include <chrono>
+using namespace std::chrono;
+
 using namespace std;
 
 const int totalTop = 15; // total top roots
@@ -730,6 +733,7 @@ bool renderImage(int &xRes, int &yRes, const string &filename, int frame_num, VE
 ///////////////////////////////////////////////////////////////////////
 int main(int argc, char** argv)
 {
+  auto start = high_resolution_clock::now(); // record program start time
 
   // every root on screen is between x[-2.0, 2.0], y[-2.0, 2.0]
   // top right is (2.0, 2.0), bottom right is (2.0, -2.0), bottom left is (-2.0, 2.0), top left is (-2.0, 2.0)
@@ -917,6 +921,15 @@ int main(int argc, char** argv)
         }
       }
       rootInfo << "total rootCombinations tried: " << rootCombinations << endl;
+      auto stop = high_resolution_clock::now(); 
+      auto ms = duration_cast<milliseconds>(stop - start);
+      auto secs = duration_cast<seconds>(ms);
+      ms -= duration_cast<milliseconds>(secs);
+      auto mins = duration_cast<minutes>(secs);
+      secs -= duration_cast<seconds>(mins);
+      auto hour = duration_cast<hours>(mins);
+      mins -= duration_cast<minutes>(hour);
+      rootInfo << "runtime: " << hour.count() << " hours, " << mins.count() << " minutes, " << secs.count() << " seconds, " << ms.count() << " milliseconds" << endl;
       rootInfo.close(); // close file after done writing
       comInfo.close(); // close COM text file after done writing
     }
