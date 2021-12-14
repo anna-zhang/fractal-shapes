@@ -40,8 +40,6 @@ int yRes = 800;
 FIELD_2D field(xRes, yRes);
 
 // the resolution of the OpenGL window -- independent of the field resolution
-//int xScreenRes = 700;
-//int yScreenRes = 700;
 int xScreenRes = 500;
 int yScreenRes = 500;
 
@@ -581,11 +579,6 @@ bool renderImage(int &xRes, int &yRes, const string &filename, int frame_num, VE
   float root2x_pixel = (topRoots[1][0] + xHalf - origin[0]) * (1.0 / dx);
   float root2y_pixel = (topRoots[1][1] + yHalf - origin[1]) * (1.0 / dy);
 
-  // cout << "root1x_pixel: " << root1x_pixel << endl;
-  // cout << "root1y_pixel: " << root1y_pixel << endl;
-  // cout << "root2x_pixel: " << root2x_pixel << endl;
-  // cout << "root2y_pixel: " << root2y_pixel << endl;
-
   bool shape = false; // hold whether there is a shape (whether there are white pixels)
 
   // to calculate shape's center of mass
@@ -593,10 +586,8 @@ bool renderImage(int &xRes, int &yRes, const string &filename, int frame_num, VE
   float yPosSum = 0.0; // sum of y values of white pixels
   int numWhitePixels = 0; // number of white pixels
 
-  // cout << " Row: "; flush(cout);
   for (int y = 0; y < yRes; y++)
   {
-    // cout << y << " "; flush(cout);
     for (int x = 0; x < xRes; x++)
     {
       // getting the center coordinate here is a little sticky
@@ -640,13 +631,11 @@ bool renderImage(int &xRes, int &yRes, const string &filename, int frame_num, VE
           break;
       }
 
-      // cout << "totalIterations: " << totalIterations << endl;
       int pixelIndex = x + (yRes - y) * xRes; // calculate pixel index for pixel values array that represents the final output image
 
       // color accordingly
       if (totalIterations == maxIterations)
       {
-        // cout << "white" << endl;
         field(x, y) = 1.0; // did not escape, color white
         if (numCentered != 0)
         {
@@ -664,7 +653,6 @@ bool renderImage(int &xRes, int &yRes, const string &filename, int frame_num, VE
       }
       else
       {
-        // cout << "black" << endl;
         field(x, y) = 0.0; // escaped, color black
         // set, in final image
         ppmOut[3 * pixelIndex] = 0.0f;
@@ -738,7 +726,6 @@ int main(int argc, char** argv)
   // every root on screen is between x[-2.0, 2.0], y[-2.0, 2.0]
   // top right is (2.0, 2.0), bottom right is (2.0, -2.0), bottom left is (-2.0, 2.0), top left is (-2.0, 2.0)
 
-  // all two root polynomial
   // detect mode
   int mode = 0; // 0 for full space exploration, 1 for single exploration, 2 for random roots exploration; 3 for one root pinned exploration; default full space exploration
   if (argc > 1)
@@ -762,12 +749,9 @@ int main(int argc, char** argv)
     // format: ./mandelbrot -single (# of top roots n) (root0_x) (root0_y) ... (rootn-1_x) (rootn-1_y)
     int num_top_roots = atoi(argv[2]);
     currentTop = num_top_roots; // number of roots
-    // cout << "num_top_roots: " << num_top_roots << endl;
-    // cout << "currentTop: " << currentTop << endl;
     for (int i = 0; i < num_top_roots; i++)
     {
       topRoots.push_back(VEC3F(atof(argv[2 * i + 3]), atof(argv[2 * i + 4]), 0.0));
-      // cout << "topRoots" << i << ": " << topRoots[i] << endl; 
     }
     // compute fractal
     runOnce();
@@ -791,7 +775,7 @@ int main(int argc, char** argv)
 
     int rootCombinations = 0; // hold number of root combinations tried
 
-    // format: ./mandelbrot -random (-any or -pinned) (# of roots) (# of random combinations of roots) (-color or -noColor) (-center or -notCentered)
+    // format: ./mandelbrot -random (-any or -pinned) (# of roots) (# of with-shape images to generate) (-color or -noColor) (-center or -notCentered)
     if (argc == 7)
     {
       numRootsToExplore = atoi(argv[3]); // set # of roots to be user-specified
@@ -941,6 +925,7 @@ int main(int argc, char** argv)
   }
   else if (mode == 3)
   {
+    // grid exploration only works for two root polynomials
     // create and open a text file to store root information alongside output image file names
     ofstream rootInfo("pinned/root_info.txt");
 
@@ -1042,7 +1027,7 @@ int main(int argc, char** argv)
     }
 
   }
-  else // full space exploration with two roots
+  else // full space regular grid exploration with two roots
   {
     // create and open a text file to store root information alongside output image file names
     ofstream rootInfo("shapes/root_info.txt");
